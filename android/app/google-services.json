@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1053483955838",
+    "project_id": "lingua-franca-c4840",
+    "storage_bucket": "lingua-franca-c4840.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1053483955838:android:f4864b563f0ca370370a2f",
+        "android_client_info": {
+          "package_name": "com.example.lingua_franca"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACCEO8GZKCc_qZ31pz9rxf0CdpJfZY5Ag"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

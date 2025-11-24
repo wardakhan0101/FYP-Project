@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -11,7 +11,6 @@ class STTServiceMinimal {
   OnlineStream? _stream;
   bool _isInitialized = false;
 
-  // Track total samples processed
   int _totalSamplesProcessed = 0;
 
   final StreamController<String> _transcriptionController =
@@ -25,6 +24,10 @@ class STTServiceMinimal {
     try {
       print('🎤 MINIMAL TEST: Starting initialization...');
 
+      // CRITICAL: Initialize Sherpa ONNX bindings FIRST
+      initBindings();
+      print('✅ Sherpa ONNX bindings initialized');
+
       // Get microphone permission
       final status = await Permission.microphone.request();
       if (!status.isGranted) {
@@ -36,9 +39,23 @@ class STTServiceMinimal {
       final appDir = await getApplicationDocumentsDirectory();
       final modelDir = '${appDir.path}/models';
 
+      // Create directory if it doesn't exist
+      final dir = Directory(modelDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+        print('📁 Created models directory');
+      }
+
+      // Copy model files from assets to file system
+      print('📦 Copying model files from assets...');
+      await _copyAssetToFile('assets/models/encoder-epoch-99-avg-1.onnx', '$modelDir/encoder-epoch-99-avg-1.onnx');
+      await _copyAssetToFile('assets/models/decoder-epoch-99-avg-1.onnx', '$modelDir/decoder-epoch-99-avg-1.onnx');
+      await _copyAssetToFile('assets/models/joiner-epoch-99-avg-1.onnx', '$modelDir/joiner-epoch-99-avg-1.onnx');
+      await _copyAssetToFile('assets/models/tokens.txt', '$modelDir/tokens.txt');
+
       print('📍 Using models from: $modelDir');
 
-      // Verify tokens file specifically (often causes issues)
+      // Verify tokens file
       final tokensPath = '$modelDir/tokens.txt';
       if (await File(tokensPath).exists()) {
         final tokensContent = await File(tokensPath).readAsString();
@@ -58,8 +75,8 @@ class STTServiceMinimal {
           joiner: '$modelDir/joiner-epoch-99-avg-1.onnx',
         ),
         tokens: tokensPath,
-        numThreads: 1,  // Single thread for simplicity
-        debug: false,   // Disable debug to reduce noise
+        numThreads: 1,
+        debug: false,
         provider: 'cpu',
       );
 
@@ -67,7 +84,7 @@ class STTServiceMinimal {
         model: modelConfig,
         decodingMethod: 'greedy_search',
         maxActivePaths: 4,
-        enableEndpoint: false,  // Disable endpoint detection for testing
+        enableEndpoint: false,
       );
 
       print('⚙️ Creating recognizer...');
@@ -82,6 +99,21 @@ class STTServiceMinimal {
       print('❌ Error: $e');
       print('📚 Stack: ${stack.toString().split('\n').take(5).join('\n')}');
       return false;
+    }
+  }
+
+  // Helper method to copy asset files
+  Future<void> _copyAssetToFile(String assetPath, String filePath) async {
+    final file = File(filePath);
+
+    // Only copy if file doesn't exist
+    if (!await file.exists()) {
+      print('   Copying: $assetPath');
+      final byteData = await rootBundle.load(assetPath);
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+      print('   ✅ Copied: $assetPath');
+    } else {
+      print('   ✓ Already exists: ${filePath.split('/').last}');
     }
   }
 

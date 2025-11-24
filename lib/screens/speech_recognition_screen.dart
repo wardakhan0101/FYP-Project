@@ -30,6 +30,21 @@ class _SpeechRecognitionScreenState extends State<SpeechRecognitionScreen> {
   Future<void> _initializeServices() async {
     print('🔧 Initializing services...');
 
+    // Initialize audio recorder FIRST (required for flutter_sound)
+    try {
+      await _audioService.initialize();
+      print('✅ Audio service initialized');
+    } catch (e) {
+      print('❌ Failed to initialize audio service: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to initialize audio: $e')),
+        );
+      }
+      return;
+    }
+
+    // Initialize STT service
     final initialized = await _sttService.initialize();
     setState(() {
       _isInitialized = initialized;
@@ -57,7 +72,7 @@ class _SpeechRecognitionScreenState extends State<SpeechRecognitionScreen> {
     // Listen to audio stream and process
     _audioSubscription = _audioService.audioStream.listen((samples) {
       if (_isRecording) {
-        print('🔊 Received ${samples.length} audio samples'); // Debug: see if audio is coming
+        print('🔊 Received ${samples.length} audio samples');
         _sttService.processAudio(samples);
       }
     });

@@ -10,56 +10,63 @@ class AudioRecorderService {
 
   Stream<List<double>> get audioStream => _audioStreamController.stream;
 
-  StreamSubscription<Food>? _recordingSubscription;
+  StreamSubscription<Uint8List>? _recordingSubscription;
   int _packetCount = 0;
 
   Future<void> initialize() async {
     _recorder = FlutterSoundRecorder();
     await _recorder!.openRecorder();
     await Permission.microphone.request();
+    print('✅ Audio recorder initialized');
   }
 
   Future<bool> startRecording() async {
-    if (_recorder == null) return false;
+    if (_recorder == null) {
+      print('❌ Recorder not initialized');
+      return false;
+    }
 
     try {
       print('🎤 Starting audio recording...');
       _packetCount = 0;
 
-      final recordingStream = _recorder!.foodStream!;
+      // Create stream controller for Uint8List (PCM data)
+      final StreamController<Uint8List> recordingStreamController =
+      StreamController<Uint8List>();
 
       await _recorder!.startRecorder(
-        toStream: recordingStream,
+        toStream: recordingStreamController.sink,
         codec: Codec.pcm16,
         sampleRate: 16000,
         numChannels: 1,
       );
 
-      _recordingSubscription = recordingStream.listen((food) {
-        if (food is FoodData) {
-          _packetCount++;
-          final bytes = food.data!;
+      // Listen to the recording stream
+      _recordingSubscription = recordingStreamController.stream.listen((bytes) {
+        _packetCount++;
 
-          // DEBUG
-          if (_packetCount <= 3) {
-            print('📦 Packet $_packetCount: ${bytes.length} bytes');
-            print('   First 20 bytes: ${bytes.take(20).toList()}');
-          }
-
-          final samples = _bytesToSamples(bytes);
-
-          // Calculate amplitude
-          double maxAmp = 0;
-          for (final s in samples) {
-            if (s.abs() > maxAmp) maxAmp = s.abs();
-          }
-
-          if (_packetCount % 20 == 0 || maxAmp > 0.01) {
-            print('🔊 Packet $_packetCount: max amp=${maxAmp.toStringAsFixed(6)}');
-          }
-
-          _audioStreamController.add(samples);
+        // DEBUG
+        if (_packetCount <= 3) {
+          print('📦 Packet $_packetCount: ${bytes.length} bytes');
+          print('   First 20 bytes: ${bytes.take(20).toList()}');
         }
+
+        final samples = _bytesToSamples(bytes);
+
+        // Calculate amplitude
+        double maxAmp = 0;
+        double sum = 0;
+        for (final s in samples) {
+          if (s.abs() > maxAmp) maxAmp = s.abs();
+          sum += s.abs();
+        }
+        double avgAmp = samples.isNotEmpty ? sum / samples.length : 0;
+
+        if (_packetCount % 20 == 0 || maxAmp > 0.01) {
+          print('🔊 Packet $_packetCount: max=${maxAmp.toStringAsFixed(6)}, avg=${avgAmp.toStringAsFixed(6)}');
+        }
+
+        _audioStreamController.add(samples);
       });
 
       print('✅ Recording started successfully');
@@ -83,7 +90,9 @@ class AudioRecorderService {
   }
 
   Future<void> stopRecording() async {
+    print('🛑 Stopping recording...');
     await _recordingSubscription?.cancel();
+    _recordingSubscription = null;
     await _recorder?.stopRecorder();
     print('🛑 Recording stopped');
   }
@@ -92,5 +101,6 @@ class AudioRecorderService {
     _recordingSubscription?.cancel();
     _recorder?.closeRecorder();
     _audioStreamController.close();
+    print('🗑️ Audio recorder disposed');
   }
 }

@@ -43,6 +43,7 @@ dependencies:
   permission_handler: ^11.0.0
   path_provider: ^2.1.1
   record: ^6.1.2
+  flutter_sound: ^9.2.13
 
 
 dev_dependencies:
@@ -72,6 +73,10 @@ flutter:
     - assets/images/
 #    - assets/models/gemma-2b-it-gpu-int4.bin
     - assets/models/tokenizer.model
+    - assets/models/decoder-epoch-99-avg-1.onnx
+    - assets/models/encoder-epoch-99-avg-1.onnx
+    - assets/models/joiner-epoch-99-avg-1.onnx
+    - assets/models/tokens.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

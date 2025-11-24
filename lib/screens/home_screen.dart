@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lingua_franca/services/auth_service.dart';
 import 'package:lingua_franca/screens/login_screen.dart';
+import 'package:lingua_franca/screens/speech_recognition_screen.dart'; // ADD THIS LINE
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -37,13 +38,13 @@ class HomeScreen extends StatelessWidget {
                       color: Color(0xFF6B72AB),
                       shape: BoxShape.circle,
                     ),
-                    child: ClipOval( // Use ClipOval to ensure circular shape
+                    child: ClipOval(
                       child: Image.asset(
                         'assets/images/bot_icon.png',
-                        fit: BoxFit.cover, // Ensure image covers the circular area
+                        fit: BoxFit.cover,
                       ),
-                    ), // Closing parenthesis for ClipOval
-                  ), // Closing parenthesis for the Container
+                    ),
+                  ),
                   const SizedBox(height: 32),
 
                   // Welcome Message
@@ -88,6 +89,43 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 48),
+
+                  // START PRACTICE BUTTON (NEW!)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const SpeechRecognitionScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6B72AB),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.mic, size: 24),
+                          SizedBox(width: 8),
+                          Text(
+                            'Start Speaking Practice',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16), // Space between buttons
 
                   // Sign Out Button
                   SizedBox(

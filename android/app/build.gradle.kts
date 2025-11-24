@@ -25,7 +25,7 @@ android {
         applicationId = "com.example.lingua_franca"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 23 // Updated minSdkVersion to 23 as per Firebase requirement
+        minSdk = flutter.minSdkVersion // Updated minSdkVersion to 23 as per Firebase requirement
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

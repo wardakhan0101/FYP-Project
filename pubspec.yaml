@@ -36,13 +36,14 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
-
-  # NEW: Add these for speech recognition
+  flutter_gemma: ^0.11.12
+  file_picker: ^8.1.2
+  google_fonts: ^6.2.1
   sherpa_onnx: ^1.10.30
   permission_handler: ^11.0.0
   path_provider: ^2.1.1
-  record: ^6.1.2  # Stable audio recording, compatible with above
-  flutter_sound: ^9.2.13
+  record: ^6.1.2
+
 
 dev_dependencies:
   flutter_test:
@@ -69,10 +70,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
-    - assets/models/encoder-epoch-99-avg-1.onnx
-    - assets/models/decoder-epoch-99-avg-1.onnx
-    - assets/models/joiner-epoch-99-avg-1.onnx
-    - assets/models/tokens.txt
+#    - assets/models/gemma-2b-it-gpu-int4.bin
+    - assets/models/tokenizer.model
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

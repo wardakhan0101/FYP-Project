@@ -3,9 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:lingua_franca/screens/login_screen.dart';
 import 'package:lingua_franca/screens/home_screen.dart';
 import 'package:lingua_franca/services/auth_service.dart';
+import 'package:flutter_gemma/core/api/flutter_gemma.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterGemma.initialize();
   await Firebase.initializeApp();
   runApp(const MyApp());
 }

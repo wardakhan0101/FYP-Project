@@ -17,14 +17,18 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   late AnimationController _micController;
   bool _isListening = false;
 
-  // Gemma Variables - CORRECTED TYPES
-  InferenceModel? _model;  // ✅ Changed from Model
-  InferenceChat? _chat;    // ✅ Changed from Chat
+  // Gemma Variables
+  InferenceModel? _model;
+  InferenceChat? _chat;
   bool _isModelLoading = false;
   bool _isModelReady = false;
 
   // Chat History
   final List<Map<String, dynamic>> _messages = [];
+
+  // ✅ NEW: Track message count for history management
+  int _messageCount = 0;
+  static const int MAX_EXCHANGES = 10; // Maximum number of exchanges (user + assistant pairs)
 
   @override
   void initState() {
@@ -45,7 +49,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   }
 
   // ----------------------------------------------------------------------
-  // 1. LOAD THE MODEL (The "Brain") - CORRECTED
+  // 1. LOAD THE MODEL (The "Brain")
   // ----------------------------------------------------------------------
   Future<void> _pickAndLoadModel() async {
     try {
@@ -60,18 +64,19 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
           modelType: ModelType.gemmaIt,
         ).fromFile(modelPath).install();
 
-        // ✅ Changed to FlutterGemmaPlugin.instance
+        // ✅ IMPROVED: Increased maxTokens from 2048 to 4096
         _model = await FlutterGemmaPlugin.instance.createModel(
           modelType: ModelType.gemmaIt,
-          maxTokens: 2048,
+          maxTokens: 4096,
           preferredBackend: PreferredBackend.gpu,
         );
 
+        // ✅ IMPROVED: Increased tokenBuffer from 1536 to 4096
         _chat = await _model!.createChat(
-          temperature: 0.7,
+          temperature: 0.2,
           topK: 40,
           randomSeed: 1,
-          tokenBuffer: 1536,
+          tokenBuffer: 2048,
         );
 
         setState(() {
@@ -104,39 +109,111 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     setState(() {
       _messages.add({'text': userText, 'isMe': true});
       _textController.clear();
-      _messages.add({'text': "", 'isMe': false}); // Placeholder
+      _messages.add({'text': "", 'isMe': false});
     });
     _scrollToBottom();
 
     try {
-      print("📤 Sending message: $userText");
+      // Check limits
+      _messageCount++;
+      if (_messageCount > MAX_EXCHANGES * 2) {
+        _resetChatContext();
+      }
 
-      // Add user message
-      _chat!.addQueryChunk(Message.text(text: userText, isUser: true));
+      String formattedPrompt = "";
 
-      print("💬 Chat history before generation:");
-      // Try to inspect chat state if possible
+      // --- IMPROVED SYSTEM PROMPT ---
+      // We inject this if the conversation is just starting (length <= 2)
+      if (_messages.length <= 2) {
+        formattedPrompt += "<start_of_turn>user\n"
+            "You are a friendly chat companion. "
+            "IMPORTANT: If the user tells you their name or details, YOU MUST REMEMBER THEM. "
+            "It is safe to repeat the user's name back to them. "
+            "Keep answers short and concise.\n<end_of_turn>\n"
+            "<start_of_turn>model\nUnderstood. I will remember your details and be concise.\n<end_of_turn>\n";
+      }
 
-      // Stream response
+      // Wrap the actual user message
+      formattedPrompt += "<start_of_turn>user\n$userText<end_of_turn>\n<start_of_turn>model\n";
+
+      _chat!.addQueryChunk(Message.text(text: formattedPrompt, isUser: true));
+
       _chat!.generateChatResponseAsync().listen((resp) {
         if (resp is TextResponse) {
           setState(() {
             final lastMsgIndex = _messages.length - 1;
-            _messages[lastMsgIndex]['text'] = _messages[lastMsgIndex]['text'] + resp.token;
+            // Clean up any leaked tags
+            String cleanToken = resp.token.replaceAll(RegExp(r'<.*?>'), '');
+            _messages[lastMsgIndex]['text'] = _messages[lastMsgIndex]['text'] + cleanToken;
           });
           _scrollToBottom();
         }
       }, onError: (e) {
+        // --- NEW: Handle the GPU Crash Gracefully ---
         print("❌ Generation Error: $e");
+        String errorMsg = "Error: $e";
+
+        // If the GPU crashed, tell the user to reset
+        if (e.toString().contains("Session") || e.toString().contains("Calculator")) {
+          errorMsg = "🧠 Brain overload (GPU). Please tap the Reset button top right.";
+        }
+
         setState(() {
           final lastMsgIndex = _messages.length - 1;
-          _messages[lastMsgIndex]['text'] = "Error: $e";
+          _messages[lastMsgIndex]['text'] = errorMsg;
         });
       }, onDone: () {
-        print("✅ Stream done");
+        _messageCount++;
       });
     } catch (e) {
       print("❌ Inference Error: $e");
+    }
+  }
+
+  // ✅ NEW: Reset chat context (but keep UI messages visible)
+  Future<void> _resetChatContext() async {
+    try {
+      print("🔄 Resetting chat context to free up memory...");
+
+      // Create new chat instance
+      _chat = await _model!.createChat(
+        temperature: 0.2,
+        topK: 40,
+        randomSeed: 1,
+        tokenBuffer: 2048,
+      );
+
+      _messageCount = 0;
+
+      print("✅ Chat context reset (UI messages preserved)");
+    } catch (e) {
+      print("❌ Error resetting chat context: $e");
+    }
+  }
+
+  // ✅ NEW: Reset chat completely (clears everything)
+  Future<void> _resetChat() async {
+    try {
+      _chat = await _model!.createChat(
+        temperature: 0.2,
+        topK: 40,
+        randomSeed: 1,
+        tokenBuffer: 2048,
+      );
+
+      setState(() {
+        _messages.clear();
+        _messageCount = 0;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("🔄 Chat reset successfully")),
+      );
+    } catch (e) {
+      print("Error resetting chat: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error resetting: $e"), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -152,7 +229,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     });
   }
 
-  // UI BUILD remains the same...
+  // UI BUILD
   @override
   Widget build(BuildContext context) {
     const Color primaryPurple = Color(0xFF8B5CF6);
@@ -169,18 +246,24 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
           onPressed: () {},
         ),
         actions: [
-          if (!_isModelReady)
+          // ✅ Reset button when model is ready
+          if (_isModelReady) ...[
+            IconButton(
+              icon: const Icon(Icons.refresh, color: primaryPurple),
+              onPressed: _resetChat,
+              tooltip: "Reset Chat",
+            ),
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(Icons.check_circle, color: Colors.green),
+            ),
+          ] else
             TextButton.icon(
               onPressed: _isModelLoading ? null : _pickAndLoadModel,
               icon: _isModelLoading
                   ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.memory, color: primaryPurple),
               label: Text(_isModelLoading ? "Loading..." : "Load Brain"),
-            )
-          else
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(Icons.check_circle, color: Colors.green),
             ),
         ],
       ),

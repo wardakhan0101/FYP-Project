@@ -9,7 +9,7 @@ plugins {
 android {
     namespace = "com.example.lingua_franca"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973" // Updated NDK version as per Firebase requirement
+    ndkVersion = "28.2.13676358" // Updated NDK version as per Firebase requirement
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

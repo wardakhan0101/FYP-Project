@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lingua_franca/screens/chat_screen.dart';
 import 'package:lingua_franca/screens/developers_screen.dart';
+import 'package:lingua_franca/screens/profile_screen.dart';
 
 // -----------------------------------------------------------
 // 1. CUSTOM PAINTER FOR GRADIENT CIRCULAR PROGRESS
@@ -40,7 +41,7 @@ class _CircularProgressPainter extends CustomPainter {
     final progressSweepAngle = 3.14159 * 2 * progress;
 
     final progressPaint = Paint()
-      ..strokeCap = StrokeCap.round // **Fixes the "ugly square" at 100%**
+      ..strokeCap = StrokeCap.round
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..shader = LinearGradient(
@@ -87,7 +88,6 @@ class GradientCircularProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Define a slightly brighter gradient for the arc
     final gradientColors = [
       primaryColor,
       primaryColor.withOpacity(0.8),
@@ -115,16 +115,16 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UPDATED THEME COLORS for a brighter, more vibrant look
-    final Color primaryPurple = const Color(0xFF8A48F0); // Brighter Primary Purple
-    final Color secondaryPurple = const Color(0xFFD9BFFF); // Light Accent for pills
-    final Color softBackground = const Color(0xFFF7F7FA); // Very light grey/lavender background
-    final Color textDark = const Color(0xFF101828); // Headings
-    final Color textGrey = const Color(0xFF667085); // Subtitles
+    final Color primaryPurple = const Color(0xFF8A48F0);
+    final Color secondaryPurple = const Color(0xFFD9BFFF);
+    final Color softBackground = const Color(0xFFF7F7FA);
+    final Color textDark = const Color(0xFF101828);
+    final Color textGrey = const Color(0xFF667085);
 
     return Scaffold(
       backgroundColor: softBackground,
-      bottomNavigationBar: _buildBottomNavBar(primaryPurple),
+      // 2. Pass 'context' to the builder method
+      bottomNavigationBar: _buildBottomNavBar(context, primaryPurple),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -132,22 +132,12 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Header
                 _buildHeader(context, primaryPurple, textDark),
-
                 const SizedBox(height: 24),
-
-                // 2. Welcome Banner
                 _buildWelcomeBanner(primaryPurple, secondaryPurple),
-
                 const SizedBox(height: 24),
-
-                // 3. Progress Card (Now uses Custom Painter)
                 _buildProgressCard(primaryPurple, textDark, textGrey),
-
                 const SizedBox(height: 24),
-
-                // 4. CTA Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -178,21 +168,14 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // 5. Weekly Streak
                 _buildSectionTitle('Weekly Practice Streak', textDark),
                 const SizedBox(height: 12),
                 _buildStreakRow(Colors.white, primaryPurple),
-
                 const SizedBox(height: 24),
-
-                // 6. Achievements
                 _buildSectionTitle('Your Achievements', textDark),
                 const SizedBox(height: 12),
                 _buildAchievementsRow(Colors.white, textDark),
-
                 const SizedBox(height: 20),
               ],
             ),
@@ -218,7 +201,6 @@ class HomeScreen extends StatelessWidget {
         ),
         Row(
           children: [
-            // Stats (New User = 0)
             Row(
               children: [
                 const Icon(Icons.local_fire_department, color: Color(0xFFFF0000), size: 20),
@@ -235,7 +217,6 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 12),
-            // Profile / Dev Button
             GestureDetector(
               onTap: () {
                 Navigator.of(context).push(
@@ -301,9 +282,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- PROGRESS CARD WITH CUSTOM INDICATOR ---
   Widget _buildProgressCard(Color primary, Color textDark, Color textGrey) {
-    // Demo values
     final double currentProgress = 0.0;
     final String currentProgressText = '0%';
 
@@ -357,15 +336,12 @@ class HomeScreen extends StatelessWidget {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Using the new custom widget
                       GradientCircularProgress(
                         progress: currentProgress,
                         primaryColor: primary,
                         trackColor: Colors.grey.shade200,
                         strokeWidth: 12,
                       ),
-
-                      // The Progress Text
                       Text(
                         currentProgressText,
                         style: TextStyle(
@@ -384,9 +360,7 @@ class HomeScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                // Placeholder action
-              },
+              onPressed: () {},
               style: ElevatedButton.styleFrom(
                 backgroundColor: textDark,
                 foregroundColor: Colors.white,
@@ -540,7 +514,8 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomNavBar(Color primary) {
+  // 3. UPDATED NAV BAR WITH ONTAP LOGIC
+  Widget _buildBottomNavBar(BuildContext context, Color primary) {
     return Container(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
@@ -560,6 +535,17 @@ class HomeScreen extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
+        // Add onTap listener
+        onTap: (index) {
+          if (index == 3) {
+            // Index 3 is Profile
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const ProfileScreen(),
+              ),
+            );
+          }
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.mic), label: 'Practice'),

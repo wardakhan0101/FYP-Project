@@ -3,6 +3,7 @@ import 'package:lingua_franca/screens/chat_screen.dart';
 import 'package:lingua_franca/services/auth_service.dart';
 import 'package:lingua_franca/screens/login_screen.dart';
 import 'package:lingua_franca/screens/speech_recognition_screen.dart'; // ADD THIS LINE
+import 'package:lingua_franca/screens/native_stt_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -157,6 +158,45 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16), // Space between buttons
+
+                  // Add this after the "Start Speaking Practice" button
+                  const SizedBox(height: 16),
+
+// STT NATIVE BUTTON (NEW!)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const NativeSttScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6B72AB),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.mic_none, size: 24),
+                          SizedBox(width: 8),
+                          Text(
+                            'STT Native',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                   // Sign Out Button
                   SizedBox(

@@ -27,9 +27,9 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   // Chat History
   final List<Map<String, dynamic>> _messages = [];
 
-  // ✅ NEW: Track message count for history management
+  // Track message count for history management
   int _messageCount = 0;
-  static const int MAX_EXCHANGES = 10; // Maximum number of exchanges (user + assistant pairs)
+  static const int MAX_EXCHANGES = 10;
 
   @override
   void initState() {
@@ -50,7 +50,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   }
 
   // ----------------------------------------------------------------------
-  // 1. LOAD THE MODEL (The "Brain")
+  // LOGIC (UNCHANGED)
   // ----------------------------------------------------------------------
   Future<void> _pickAndLoadModel() async {
     try {
@@ -65,14 +65,12 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
           modelType: ModelType.gemmaIt,
         ).fromFile(modelPath).install();
 
-        // ✅ IMPROVED: Increased maxTokens from 2048 to 4096
         _model = await FlutterGemmaPlugin.instance.createModel(
           modelType: ModelType.gemmaIt,
           maxTokens: 4096,
           preferredBackend: PreferredBackend.gpu,
         );
 
-        // ✅ IMPROVED: Increased tokenBuffer from 1536 to 4096
         _chat = await _model!.createChat(
           temperature: 0.2,
           topK: 40,
@@ -100,9 +98,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     }
   }
 
-  // ----------------------------------------------------------------------
-  // 2. SEND MESSAGE & STREAM RESPONSE
-  // ----------------------------------------------------------------------
   void _sendMessage() {
     if (_textController.text.isEmpty || !_isModelReady) return;
     String userText = _textController.text;
@@ -115,7 +110,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     _scrollToBottom();
 
     try {
-      // Check limits
       _messageCount++;
       if (_messageCount > MAX_EXCHANGES * 2) {
         _resetChatContext();
@@ -123,8 +117,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
 
       String formattedPrompt = "";
 
-      // --- IMPROVED SYSTEM PROMPT ---
-      // We inject this if the conversation is just starting (length <= 2)
       if (_messages.length <= 2) {
         formattedPrompt += "<start_of_turn>user\n"
             "You are a friendly chat companion. "
@@ -134,7 +126,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
             "<start_of_turn>model\nUnderstood. I will remember your details and be concise.\n<end_of_turn>\n";
       }
 
-      // Wrap the actual user message
       formattedPrompt += "<start_of_turn>user\n$userText<end_of_turn>\n<start_of_turn>model\n";
 
       _chat!.addQueryChunk(Message.text(text: formattedPrompt, isUser: true));
@@ -143,22 +134,17 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
         if (resp is TextResponse) {
           setState(() {
             final lastMsgIndex = _messages.length - 1;
-            // Clean up any leaked tags
             String cleanToken = resp.token.replaceAll(RegExp(r'<.*?>'), '');
             _messages[lastMsgIndex]['text'] = _messages[lastMsgIndex]['text'] + cleanToken;
           });
           _scrollToBottom();
         }
       }, onError: (e) {
-        // --- NEW: Handle the GPU Crash Gracefully ---
         print("❌ Generation Error: $e");
         String errorMsg = "Error: $e";
-
-        // If the GPU crashed, tell the user to reset
         if (e.toString().contains("Session") || e.toString().contains("Calculator")) {
           errorMsg = "🧠 Brain overload (GPU). Please tap the Reset button top right.";
         }
-
         setState(() {
           final lastMsgIndex = _messages.length - 1;
           _messages[lastMsgIndex]['text'] = errorMsg;
@@ -171,28 +157,20 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     }
   }
 
-  // ✅ NEW: Reset chat context (but keep UI messages visible)
   Future<void> _resetChatContext() async {
     try {
-      print("🔄 Resetting chat context to free up memory...");
-
-      // Create new chat instance
       _chat = await _model!.createChat(
         temperature: 0.2,
         topK: 40,
         randomSeed: 1,
         tokenBuffer: 2048,
       );
-
       _messageCount = 0;
-
-      print("✅ Chat context reset (UI messages preserved)");
     } catch (e) {
       print("❌ Error resetting chat context: $e");
     }
   }
 
-  // ✅ NEW: Reset chat completely (clears everything)
   Future<void> _resetChat() async {
     try {
       _chat = await _model!.createChat(
@@ -201,20 +179,15 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
         randomSeed: 1,
         tokenBuffer: 2048,
       );
-
       setState(() {
         _messages.clear();
         _messageCount = 0;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("🔄 Chat reset successfully")),
       );
     } catch (e) {
       print("Error resetting chat: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error resetting: $e"), backgroundColor: Colors.red),
-      );
     }
   }
 
@@ -230,181 +203,271 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     });
   }
 
-  // UI BUILD
+  // ----------------------------------------------------------------------
+  // UI BUILD - UPDATED
+  // ----------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    const Color primaryPurple = Color(0xFF8B5CF6);
-    const Color lightPurpleBg = Color(0xFFF3E8FF);
-    const Color textDark = Color(0xFF1F2937);
+    // 🔥 NEW VIBRANT PALETTE
+    const Color primaryColor = Color(0xFF4F46E5); // Indigo 600 (Vibrant)
+    const Color secondaryBg = Color(0xFFEEF2FF); // Cool White/Blue tint
+    const Color textDark = Color(0xFF111827); // Almost Black
+    const Color textGrey = Color(0xFF6B7280); // Cool Grey
+
+    // Gradient for user bubble
+    const Color myMsgGradientStart = Color(0xFF4F46E5);
+    const Color myMsgGradientEnd = Color(0xFF7C3AED); // Violet 600
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
+        titleSpacing: 0, // Reduces gap between back button and title
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: textDark),
+          icon: const Icon(Icons.arrow_back_ios_new, color: textDark, size: 20),
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) =>
-                const HomeScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           },
         ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Lingua Franca AI",
+              style: GoogleFonts.poppins(
+                color: textDark,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _isModelReady ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // ✅ FIXED: Wrapped in Flexible to prevent Overflow
+                Flexible(
+                  child: Text(
+                    _isModelReady ? "Online (Local GPU)" : "Offline (Waiting for Model)",
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      color: textGrey,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         actions: [
-          // ✅ Reset button when model is ready
-          if (_isModelReady) ...[
+          if (_isModelReady)
             IconButton(
-              icon: const Icon(Icons.refresh, color: primaryPurple),
+              icon: const Icon(Icons.refresh_rounded, color: primaryColor),
               onPressed: _resetChat,
-              tooltip: "Reset Chat",
-            ),
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(Icons.check_circle, color: Colors.green),
-            ),
-          ] else
-            TextButton.icon(
-              onPressed: _isModelLoading ? null : _pickAndLoadModel,
-              icon: _isModelLoading
-                  ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.memory, color: primaryPurple),
-              label: Text(_isModelLoading ? "Loading..." : "Load Brain"),
+              tooltip: "Reset Conversation",
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: InkWell(
+                onTap: _isModelLoading ? null : _pickAndLoadModel,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: _isModelLoading
+                      ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor))
+                      : Row(
+                    children: [
+                      const Icon(Icons.download_rounded, size: 16, color: primaryColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        "Load Brain",
+                        style: GoogleFonts.poppins(
+                            color: primaryColor, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
         ],
       ),
       body: Column(
         children: [
-          // HEADER
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber[100],
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 5)],
-                  ),
-                  child: const Icon(Icons.smart_toy, color: Colors.deepPurple, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "AI Assistant",
-                      style: GoogleFonts.poppins(color: primaryPurple, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      _isModelReady ? "Online (Edge AI)" : "Offline (Load Model)",
-                      style: GoogleFonts.poppins(
-                          color: _isModelReady ? Colors.green : Colors.grey,
-                          fontSize: 12, fontStyle: FontStyle.italic
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // CHAT AREA
+          // Chat Body
           Expanded(
             child: _messages.isEmpty
                 ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey[300]),
-                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: secondaryBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.smart_toy_outlined, size: 50, color: primaryColor),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
-                    _isModelReady ? "Say Hello!" : "Load the Model (.bin)\nto start chatting",
+                    _isModelReady ? "Ready to Chat!" : "Let's get started",
+                    style: GoogleFonts.poppins(
+                        color: textDark, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isModelReady
+                        ? "Ask me anything."
+                        : "Load the Gemma model (.bin) to\nactivate the AI assistant.",
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 16),
+                    style: GoogleFonts.poppins(color: textGrey, fontSize: 14),
                   ),
                 ],
               ),
             )
                 : ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final msg = _messages[index];
-                return _buildChatMessage(
+                return _buildModernMessage(
                   isMe: msg['isMe'],
                   message: msg['text'],
-                  avatarIcon: msg['isMe'] ? Icons.person : Icons.smart_toy,
-                  bgColor: msg['isMe'] ? primaryPurple : Colors.grey[100]!,
-                  textColor: msg['isMe'] ? Colors.white : textDark,
+                  primaryColor: primaryColor,
+                  myGradientStart: myMsgGradientStart,
+                  myGradientEnd: myMsgGradientEnd,
                 );
               },
             ),
           ),
 
-          // LISTENING ANIMATION
+          // Listening Indicator
           if (_isListening)
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 120,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ScaleTransition(
-                        scale: Tween(begin: 1.0, end: 1.2).animate(_micController),
-                        child: Container(width: 100, height: 100, decoration: BoxDecoration(shape: BoxShape.circle, color: primaryPurple.withOpacity(0.1))),
-                      ),
-                      Container(
-                        width: 60, height: 60,
-                        decoration: const BoxDecoration(shape: BoxShape.circle, color: primaryPurple),
-                        child: const Icon(Icons.mic, color: Colors.white, size: 32),
-                      ),
-                    ],
-                  ),
-                ),
-                Text("Listening...", style: GoogleFonts.caveat(color: primaryPurple, fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-              ],
-            ),
-
-          // INPUT AREA
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            color: Colors.white,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(color: lightPurpleBg, borderRadius: BorderRadius.circular(30)),
-              child: Row(
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      decoration: InputDecoration(
-                        hintText: _isModelReady ? "Write message..." : "Load model first ->",
-                        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                        border: InputBorder.none,
+                  Text("Listening...",
+                      style: GoogleFonts.poppins(
+                          color: primaryColor, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 5),
+                  ScaleTransition(
+                    scale: Tween(begin: 1.0, end: 1.1).animate(_micController),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
+                      child: const Icon(Icons.mic, color: Colors.redAccent, size: 20),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(_isListening ? Icons.stop : Icons.mic_none),
-                    color: _isListening ? Colors.red : Colors.grey[500],
-                    onPressed: () => setState(() => _isListening = !_isListening),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.send, color: _isModelReady ? primaryPurple : Colors.grey),
-                    onPressed: _sendMessage,
                   ),
                 ],
               ),
+            ),
+
+          // Input Area
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, -5))
+              ],
+            ),
+            child: Row(
+              children: [
+                // Mic Button
+                InkWell(
+                  onTap: () => setState(() => _isListening = !_isListening),
+                  borderRadius: BorderRadius.circular(30),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _isListening ? Colors.redAccent.withOpacity(0.1) : secondaryBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                      color: _isListening ? Colors.redAccent : primaryColor,
+                      size: 22,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Text Field
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: secondaryBg,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.transparent),
+                    ),
+                    child: TextField(
+                      controller: _textController,
+                      style: GoogleFonts.poppins(fontSize: 14, color: textDark),
+                      decoration: InputDecoration(
+                        hintText: _isModelReady ? "Type a message..." : "Load model first...",
+                        hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 14),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        isDense: true,
+                      ),
+                      enabled: _isModelReady,
+                      onSubmitted: (_) => _sendMessage(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Send Button
+                InkWell(
+                  onTap: _sendMessage,
+                  borderRadius: BorderRadius.circular(30),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: _isModelReady
+                          ? const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)])
+                          : null,
+                      color: _isModelReady ? null : Colors.grey[300],
+                      shape: BoxShape.circle,
+                      boxShadow: _isModelReady
+                          ? [
+                        BoxShadow(
+                            color: primaryColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4))
+                      ]
+                          : [],
+                    ),
+                    child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 22),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -412,27 +475,62 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildChatMessage({required bool isMe, required String message, required IconData avatarIcon, required Color bgColor, required Color textColor}) {
+  Widget _buildModernMessage({
+    required bool isMe,
+    required String message,
+    required Color primaryColor,
+    required Color myGradientStart,
+    required Color myGradientEnd,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isMe) CircleAvatar(backgroundColor: Colors.amber[100], radius: 16, child: Icon(avatarIcon, color: Colors.deepPurple, size: 18)),
-          const SizedBox(width: 10),
+          if (!isMe)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: const Color(0xFFEEF2FF),
+                child: Icon(Icons.smart_toy_rounded, size: 16, color: primaryColor),
+              ),
+            ),
           Flexible(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: bgColor,
+                gradient: isMe
+                    ? LinearGradient(
+                    colors: [myGradientStart, myGradientEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight)
+                    : null,
+                color: isMe ? null : Colors.white,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20), topRight: const Radius.circular(20),
-                  bottomLeft: isMe ? const Radius.circular(20) : Radius.zero,
-                  bottomRight: isMe ? Radius.zero : const Radius.circular(20),
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: isMe ? const Radius.circular(18) : const Radius.circular(4),
+                  bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(18),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: isMe ? null : Border.all(color: Colors.grey.withOpacity(0.1)),
+              ),
+              child: Text(
+                message,
+                style: GoogleFonts.poppins(
+                  color: isMe ? Colors.white : const Color(0xFF374151),
+                  fontSize: 14,
+                  height: 1.4,
                 ),
               ),
-              child: Text(message, style: GoogleFonts.poppins(color: textColor, fontSize: 14)),
             ),
           ),
         ],

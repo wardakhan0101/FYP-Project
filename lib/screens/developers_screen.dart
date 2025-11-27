@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lingua_franca/screens/chat_screen.dart';
+import 'package:lingua_franca/screens/model_chatbot_screen.dart';
 import 'package:lingua_franca/screens/speech_recognition_screen.dart';
 import 'package:lingua_franca/services/auth_service.dart';
 import 'package:lingua_franca/screens/login_screen.dart';

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+import 'chat_screen.dart';
+
 void main() {
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -19,8 +21,8 @@ class PresentationPracticeScreen extends StatefulWidget {
 class _PresentationPracticeScreenState extends State<PresentationPracticeScreen> {
   // Logic Variables
   Timer? _timer;
-  int _totalSeconds = 180; // 3 minutes
-  int _remainingSeconds = 165; // Starting at 2:45 as per screenshot
+  int _totalSeconds = 180;
+  int _remainingSeconds = 180;
   bool _isRecording = true;
   String _currentTopic = "";
 
@@ -101,19 +103,19 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const ChatScreen(),
+              ),
+            );
+          },
         ),
         title: const Text(
           "Presentation Practice",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {},
-          )
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),

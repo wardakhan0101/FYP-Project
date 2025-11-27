@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'timed_presentation_screen.dart'; // Make sure this matches your filename
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -16,7 +17,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
 
-  // Your color scheme (kept exactly as requested)
+  // Colors
   final Color primaryPurple = const Color(0xFF8A48F0);
   final Color secondaryPurple = const Color(0xFFD9BFFF);
   final Color softBackground = const Color(0xFFF7F7FA);
@@ -31,17 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _initializeChat() {
     final apiKey = dotenv.env['GROQ_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('API key not found. Check .env file.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      });
-      return;
-    }
+    if (apiKey == null || apiKey.isEmpty) return;
 
     setState(() {
       _messages.add(
@@ -59,11 +50,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final userMessage = text.trim();
 
     setState(() {
-      _messages.add(ChatMessage(
-        text: userMessage,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(ChatMessage(text: userMessage, isUser: true, timestamp: DateTime.now()));
       _isLoading = true;
     });
 
@@ -73,22 +60,13 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final botResponse = await _getGroqResponse();
       setState(() {
-        _messages.add(ChatMessage(
-          text: botResponse,
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
+        _messages.add(ChatMessage(text: botResponse, isUser: false, timestamp: DateTime.now()));
         _isLoading = false;
       });
       _scrollToBottom();
     } catch (e) {
       setState(() {
-        _messages.add(ChatMessage(
-          text: "Error: ${e.toString()}",
-          isUser: false,
-          timestamp: DateTime.now(),
-          isError: true,
-        ));
+        _messages.add(ChatMessage(text: "Error: ${e.toString()}", isUser: false, timestamp: DateTime.now(), isError: true));
         _isLoading = false;
       });
       _scrollToBottom();
@@ -100,10 +78,7 @@ class _ChatScreenState extends State<ChatScreen> {
     const url = 'https://api.groq.com/openai/v1/chat/completions';
 
     List<Map<String, String>> apiMessages = [
-      {
-        "role": "system",
-        "content": "You are a friendly language learning tutor. Keep responses concise (2-4 sentences)."
-      }
+      {"role": "system", "content": "You are a friendly language learning tutor. Keep responses concise (2-4 sentences)."}
     ];
 
     for (var msg in _messages) {
@@ -132,8 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
         final data = jsonDecode(response.body);
         return data['choices'][0]['message']['content'];
       } else {
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['error']['message']);
+        throw Exception(jsonDecode(response.body)['error']['message']);
       }
     } catch (e) {
       throw Exception("Network Error: $e");
@@ -144,7 +118,7 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 60, // Add buffer for new message
+          _scrollController.position.maxScrollExtent + 60,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -159,12 +133,13 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  // --- UI BUILD ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: softBackground,
       appBar: AppBar(
-        backgroundColor: softBackground, // Blends with body
+        backgroundColor: softBackground,
         elevation: 0,
         centerTitle: true,
         leading: Padding(
@@ -179,16 +154,15 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         title: Text(
           'AI Tutor',
-          style: TextStyle(
-            color: textDark,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: textDark, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
+            // --- NEW: Mode Selector added here ---
+            _buildModeSelector(),
+
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
@@ -222,30 +196,87 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // --- Toggle Switch Widget ---
+  Widget _buildModeSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Option 1: Freestyle (Current Screen - Active)
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: primaryPurple,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Center(
+                  child: Text(
+                    "Freestyle",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ),
+            ),
+
+            // Option 2: Timed Presentation (Navigates to other file)
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  // Navigate to the external file widget
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      // Assuming the class name in the other file is PresentationPracticeScreen
+                      builder: (context) => const PresentationPracticeScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Timed Presentation",
+                      style: TextStyle(color: textGrey, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSmartInputArea() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
         borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
       ),
       child: Row(
         children: [
-          // 1. The Mic Button (Decoration Only)
           InkWell(
-            onTap: () {
-              // Placeholder logic
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Mic not implemented yet!'), duration: Duration(seconds: 1)),
-              );
-            },
+            onTap: () {}, // Mic placeholder
             borderRadius: BorderRadius.circular(30),
             child: Container(
               padding: const EdgeInsets.all(10),
@@ -257,8 +288,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // 2. The Text Input
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -278,8 +307,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // 3. Send Button
           InkWell(
             onTap: () => _sendMessage(_controller.text),
             child: CircleAvatar(
@@ -294,13 +321,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// --- Simplified and Prettier Message Bubble ---
+// Data Models
 class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
   final bool isError;
-
   ChatMessage({required this.text, required this.isUser, required this.timestamp, this.isError = false});
 }
 
@@ -321,7 +347,6 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
-
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -337,30 +362,17 @@ class MessageBubble extends StatelessWidget {
             bottomRight: Radius.circular(isUser ? 4 : 20),
           ),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            )
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              message.text,
-              style: TextStyle(
-                color: isUser ? Colors.white : textDark,
-                fontSize: 15,
-              ),
-            ),
+            Text(message.text, style: TextStyle(color: isUser ? Colors.white : textDark, fontSize: 15)),
             const SizedBox(height: 4),
             Text(
               "${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}",
-              style: TextStyle(
-                color: isUser ? Colors.white.withOpacity(0.7) : Colors.grey,
-                fontSize: 10,
-              ),
+              style: TextStyle(color: isUser ? Colors.white.withOpacity(0.7) : Colors.grey, fontSize: 10),
             ),
           ],
         ),

@@ -121,10 +121,9 @@ class HomophoneCorrector {
       'a': 0.95, 'the': 0.95, 'just': 0.95, 'still': 0.95, 'always': 0.95,
     },
 
-    // ========== POSSESSIVE PRONOUNS (NEVER CHANGE) ==========
     'theirs': {
-      // These should never be corrected - they're standalone possessive pronouns
-      'is': 0.0, 'are': 0.0, 'was': 0.0, 'were': 0.0, // Low scores = no correction
+      // Possessive pronoun - appears after "is/are/was/were" and before "not/but/and/or" or punctuation
+      'not': 0.95, 'but': 0.95, 'and': 0.90, 'or': 0.90, 'now': 0.85,
     },
     'yours': {
       'is': 0.0, 'are': 0.0, 'was': 0.0, 'were': 0.0,
@@ -419,13 +418,11 @@ class HomophoneCorrector {
     'your': ['your', "you're"],
     "you're": ['your', "you're"],
 
-    'their': ['their', 'there', "there's", "they're"],
-    'there': ['their', 'there', "there's", "they're"],
-    "there's": ['their', 'there', "there's", "they're"],
-    "they're": ['their', 'there', "there's", "they're"],
-
-    // Possessive pronouns (map to themselves - never change)
-    'theirs': ['theirs'],
+    'their': ['their', 'there', "there's", "they're", 'theirs'],
+    'there': ['their', 'there', "there's", "they're", 'theirs'],
+    "there's": ['their', 'there', "there's", "they're", 'theirs'],
+    "they're": ['their', 'there', "there's", "they're", 'theirs'],
+    'theirs': ['their', 'there', "there's", "they're", 'theirs'],
     'yours': ['yours'],
     'hers': ['hers'],
     'ours': ['ours'],
@@ -552,17 +549,34 @@ class HomophoneCorrector {
 
     text = protectedText;
 
-    // NEW PATTERN: Protect "their/there/theyre" when followed by comma/period + "not/but"
-    // Example: "it's their, not mine" should stay "their"
+    // CRITICAL FIX: Detect "their/there/they're/there's" when in possessive pronoun context
+    // Pattern: "is/are/was/were + their/there/they're/there's"
+    // Example: "The cat is theirs, not mine" or "This house is theirs."
     text = text.replaceAllMapped(
-      RegExp(r'\b(there|theyre)\s*[,.]?\s*(not|but)\b', caseSensitive: false),
-          (match) => 'their ${match.group(2)}',
+      RegExp(r"\b(is|are|was|were)\s+(their|there|they're|there's)(\s|,|\.|\?|!|$)", caseSensitive: false),
+          (match) {
+        String verb = match.group(1)!;
+        String trailing = match.group(3) ?? '';
+
+        // This is a possessive pronoun context - use "theirs"
+        return '$verb ___THEIRS___$trailing';
+      },
     );
 
     // Pattern 1: "their/they're" + "is/are/was/were" → "there"
+    // BUT exclude if we just protected it above
     text = text.replaceAllMapped(
       RegExp(r'\b(their|theyre)\s+(is|are|was|were|has|have|had)\b', caseSensitive: false),
-          (match) => 'there ${match.group(2)}',
+          (match) {
+        // Don't change if it's near our protected marker
+        String fullMatch = match.group(0)!;
+        if (text.contains('___THEIRS___') &&
+            text.indexOf('___THEIRS___') - text.indexOf(fullMatch) < 20 &&
+            text.indexOf('___THEIRS___') - text.indexOf(fullMatch) > -20) {
+          return fullMatch;
+        }
+        return 'there ${match.group(2)}';
+      },
     );
 
     // Pattern 2: "there/they're" + possessive noun → "their"
@@ -655,6 +669,25 @@ class HomophoneCorrector {
           (match) => 'whether or',
     );
 
+    // Pattern 15: Fix STT misrecognitions of possessive pronouns
+    // "hurts" in possessive context → "hers"
+    text = text.replaceAllMapped(
+      RegExp(r'\b(is|are|was|were)\s+(hurts|hurt)\b', caseSensitive: false),
+          (match) => '${match.group(1)} hers',
+    );
+
+    // "hours" in possessive context → "ours"
+    text = text.replaceAllMapped(
+      RegExp(r'\b(is|are|was|were)\s+(hours|hour)\b', caseSensitive: false),
+          (match) => '${match.group(1)} ours',
+    );
+
+    // "mines" → "mine" in possessive context
+    text = text.replaceAllMapped(
+      RegExp(r'\b(is|are|was|were)\s+mines\b', caseSensitive: false),
+          (match) => '${match.group(1)} mine',
+    );
+
     // Restore protected possessive pronouns
     text = text
         .replaceAll('___THEIRS___', 'theirs')
@@ -676,6 +709,7 @@ class HomophoneCorrector {
 
     for (int i = 0; i < words.length; i++) {
       String word = words[i];
+      // Keep apostrophes when cleaning the word for lookup
       String lowerWord = word.toLowerCase().replaceAll(RegExp(r"[^\w']"), '');
 
       // Skip possessive pronouns and excluded words
@@ -685,32 +719,50 @@ class HomophoneCorrector {
       }
 
       // Check if this word has homophones and there's a next word
-      if (homophoneGroups.containsKey(lowerWord) && i < words.length - 1) {
-        final nextWord = words[i + 1].toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
-        final homophones = homophoneGroups[lowerWord]!;
+      if (homophoneGroups.containsKey(lowerWord)) {
+        // Find the next actual word (skip over punctuation like "...")
+        String nextWord = '';
+        int nextIndex = i + 1;
 
-        // Find best homophone based on next word context score
-        String bestWord = lowerWord;
-        double bestScore = 0.0;
-
-        for (var homophone in homophones) {
-          if (contextScores.containsKey(homophone)) {
-            final score = contextScores[homophone]![nextWord] ?? 0.0;
-            if (score > bestScore) {
-              bestScore = score;
-              bestWord = homophone;
-            }
+        while (nextIndex < words.length) {
+          String candidateWord = words[nextIndex].toLowerCase().replaceAll(RegExp(r"[^\w']"), '');
+          if (candidateWord.isNotEmpty) {
+            nextWord = candidateWord;
+            break;
           }
+          nextIndex++;
         }
 
-        // Only apply correction if we found a better match
-        if (bestScore > 0) {
-          // Preserve original capitalization
-          if (word.isNotEmpty && word[0] == word[0].toUpperCase()) {
-            bestWord = bestWord[0].toUpperCase() + bestWord.substring(1);
+        // Only proceed if we found a valid next word
+        if (nextWord.isNotEmpty) {
+          final homophones = homophoneGroups[lowerWord]!;
+
+          // Find best homophone based on next word context score
+          String bestWord = lowerWord;
+          double bestScore = 0.0;
+
+          for (var homophone in homophones) {
+            if (contextScores.containsKey(homophone)) {
+              final score = contextScores[homophone]![nextWord] ?? 0.0;
+              if (score > bestScore) {
+                bestScore = score;
+                bestWord = homophone;
+              }
+            }
           }
-          corrected.add(bestWord);
+
+          // Only apply correction if we found a better match
+          if (bestScore > 0) {
+            // Preserve original capitalization
+            if (word.isNotEmpty && word[0] == word[0].toUpperCase()) {
+              bestWord = bestWord[0].toUpperCase() + bestWord.substring(1);
+            }
+            corrected.add(bestWord);
+          } else {
+            corrected.add(word);
+          }
         } else {
+          // No valid next word found, keep original
           corrected.add(word);
         }
       } else {
@@ -742,15 +794,64 @@ class HomophoneCorrector {
     // Fix common contraction mistakes (missing apostrophes)
     enhanced = _fixContractions(enhanced);
 
-    // Add period at end if missing
+    // Add appropriate punctuation at end if missing
     if (enhanced.isNotEmpty &&
         !enhanced.endsWith('.') &&
         !enhanced.endsWith('?') &&
         !enhanced.endsWith('!')) {
-      enhanced += '.';
+
+      // Check if it's a question
+      if (_isQuestion(enhanced)) {
+        enhanced += '?';
+      } else {
+        enhanced += '.';
+      }
     }
 
     return enhanced;
+  }
+
+  // ============================================================================
+  // QUESTION DETECTION
+  // ============================================================================
+
+  bool _isQuestion(String text) {
+    String lowerText = text.toLowerCase();
+
+    // Question words at the beginning (including contractions)
+    final questionStarters = [
+      'what', 'when', 'where', 'which', 'who', 'whom', 'whose',
+      'why', 'how', 'can', 'could', 'would', 'should', 'will',
+      'shall', 'may', 'might', 'must', 'do', 'does', 'did',
+      'is', 'are', 'was', 'were', 'am', 'have', 'has', 'had',
+      // Contractions
+      "what's", "when's", "where's", "who's", "how's",
+      "what'll", "when'll", "where'll",
+      "what'd", "when'd", "where'd",
+    ];
+
+    for (var starter in questionStarters) {
+      if (lowerText.startsWith('$starter ')) {
+        return true;
+      }
+    }
+
+    // Question patterns in the middle
+    // "you are coming" vs "are you coming"
+    final questionPatterns = [
+      RegExp(r'\b(can|could|would|should|will|shall|may|might|must)\s+(i|you|he|she|it|we|they)\b', caseSensitive: false),
+      RegExp(r'\b(do|does|did)\s+(i|you|he|she|it|we|they)\b', caseSensitive: false),
+      RegExp(r'\b(is|are|was|were|am)\s+(i|you|he|she|it|we|they|there)\b', caseSensitive: false),
+      RegExp(r'\b(have|has|had)\s+(i|you|he|she|it|we|they)\b', caseSensitive: false),
+    ];
+
+    for (var pattern in questionPatterns) {
+      if (pattern.hasMatch(lowerText)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // ============================================================================

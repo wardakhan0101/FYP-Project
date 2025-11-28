@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'timed_presentation_screen.dart'; // Make sure this matches your filename
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'timed_presentation_screen.dart';
+import 'homophone_corrector.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -17,6 +19,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
 
+  // STT variables
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  bool _isInitialized = false;
+  String _currentTranscription = '';
+
+  final HomophoneCorrector _corrector = HomophoneCorrector();
+
   // Colors
   final Color primaryPurple = const Color(0xFF8A48F0);
   final Color secondaryPurple = const Color(0xFFD9BFFF);
@@ -27,7 +37,37 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _speech = stt.SpeechToText();
+    _initializeSpeech();
     _initializeChat();
+  }
+
+  Future<void> _initializeSpeech() async {
+    bool available = await _speech.initialize(
+      onStatus: (status) {
+        debugPrint('Speech status: $status');
+        if (status == 'done' || status == 'notListening') {
+          setState(() {
+            _isListening = false;
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint('Speech error: $error');
+        setState(() {
+          _isListening = false;
+        });
+        _showMessage('Error: ${error.errorMsg}');
+      },
+    );
+
+    setState(() {
+      _isInitialized = available;
+    });
+
+    if (!available) {
+      _showMessage('Speech recognition not available');
+    }
   }
 
   void _initializeChat() {
@@ -43,6 +83,75 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     });
+  }
+
+  // Start recording
+  Future<void> _toggleRecording() async {
+    if (_isListening) {
+      // If already listening, stop it
+      await _stopListening();
+    } else {
+      // Start fresh recording
+      await _startListening();
+    }
+  }
+
+  Future<void> _startListening() async {
+    if (!_isInitialized) {
+      _showMessage('Please wait, initializing...');
+      return;
+    }
+
+    setState(() {
+      _isListening = true;
+      _currentTranscription = '';
+      _controller.clear();
+    });
+
+    await _speech.listen(
+      onResult: (result) {
+        setState(() {
+          String rawText = result.recognizedWords;
+
+          // Apply homophone correction
+          String correctedText = _corrector.correctText(rawText);
+          correctedText = _corrector.enhanceText(correctedText);
+
+          // Always update the current transcription
+          _currentTranscription = correctedText;
+          _controller.text = correctedText;
+
+          // Move cursor to end
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: _controller.text.length),
+          );
+        });
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 3),
+      partialResults: true,
+      cancelOnError: true,
+      listenMode: stt.ListenMode.confirmation,
+    );
+  }
+
+  Future<void> _stopListening() async {
+    await _speech.stop();
+
+    setState(() {
+      _isListening = false;
+    });
+  }
+
+  void _showMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _sendMessage(String text) async {
@@ -130,6 +239,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -160,9 +270,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- NEW: Mode Selector added here ---
             _buildModeSelector(),
-
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
@@ -189,6 +297,36 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
               ),
+            // Show listening indicator
+            if (_isListening)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.mic,
+                        color: Colors.red,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Listening...',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             _buildSmartInputArea(),
           ],
         ),
@@ -196,7 +334,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // --- Toggle Switch Widget ---
   Widget _buildModeSelector() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -215,7 +352,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         child: Row(
           children: [
-            // Option 1: Freestyle (Current Screen - Active)
             Expanded(
               child: Container(
                 margin: const EdgeInsets.all(4),
@@ -231,16 +367,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ),
-
-            // Option 2: Timed Presentation (Navigates to other file)
             Expanded(
               child: GestureDetector(
                 onTap: () {
-                  // Navigate to the external file widget
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      // Assuming the class name in the other file is PresentationPracticeScreen
                       builder: (context) => const PresentationPracticeScreen(),
                     ),
                   );
@@ -275,16 +407,23 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: Row(
         children: [
+          // Mic button with recording state
           InkWell(
-            onTap: () {}, // Mic placeholder
+            onTap: _toggleRecording,
             borderRadius: BorderRadius.circular(30),
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: secondaryPurple.withOpacity(0.3),
+                color: _isListening
+                    ? Colors.red.withOpacity(0.2)
+                    : secondaryPurple.withOpacity(0.3),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.mic_rounded, color: primaryPurple, size: 24),
+              child: Icon(
+                _isListening ? Icons.mic : Icons.mic_rounded,
+                color: _isListening ? Colors.red : primaryPurple,
+                size: 24,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -294,25 +433,38 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: BoxDecoration(
                 color: softBackground,
                 borderRadius: BorderRadius.circular(24),
+                border: _isListening
+                    ? Border.all(color: Colors.red.withOpacity(0.3), width: 2)
+                    : null,
               ),
               child: TextField(
                 controller: _controller,
                 decoration: InputDecoration(
-                  hintText: 'Type something...',
-                  hintStyle: TextStyle(color: textGrey.withOpacity(0.6)),
+                  hintText: _isListening ? 'Listening...' : 'Type something...',
+                  hintStyle: TextStyle(
+                    color: _isListening
+                        ? Colors.red.withOpacity(0.6)
+                        : textGrey.withOpacity(0.6),
+                  ),
                   border: InputBorder.none,
                 ),
                 onSubmitted: _sendMessage,
+                readOnly: _isListening, // Make readonly while listening
               ),
             ),
           ),
           const SizedBox(width: 12),
+          // Send button - always works
           InkWell(
             onTap: () => _sendMessage(_controller.text),
             child: CircleAvatar(
               backgroundColor: primaryPurple,
               radius: 22,
-              child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 24),
+              child: const Icon(
+                Icons.arrow_upward_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ),
         ],

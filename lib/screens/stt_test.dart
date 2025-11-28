@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:deepgram_speech_to_text/deepgram_speech_to_text.dart';
 import 'package:record/record.dart';
+import '../services/grammar_api_service.dart';
+import 'grammar_report_screen.dart';
 
 // 🚨 IMPORTANT: Replace with your actual Deepgram API Key
 const String deepgramApiKey = '5ee8e833797fdac6fecdac3c7ae50d5ab037ab19';
@@ -19,16 +21,24 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
   Deepgram? _deepgram;
   DeepgramLiveListener? _liveListener;
   StreamSubscription? _deepgramSubscription;
-  String _transcript = 'Press the microphone to start speaking...'; // Slightly updated default text
+
+  final TextEditingController _textController = TextEditingController();
+
+  // 🆕 Keep track of accumulated transcript
+  String _fullTranscript = '';
+  String _currentSegment = '';
+
   bool _isListening = false;
+  bool _isAnalyzing = false; // 🆕 For loading state
 
   @override
   void initState() {
     super.initState();
     _deepgram = Deepgram(deepgramApiKey);
+    _textController.text = 'Press the microphone to start speaking...';
   }
 
-  // --- Core Functions (Unchanged Logic) ---
+  // --- Core Functions ---
 
   Future<bool> _checkPermission() async {
     PermissionStatus status = await Permission.microphone.request();
@@ -37,12 +47,17 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
 
   void _startListening() async {
     if (!await _checkPermission()) {
-      setState(() => _transcript = 'Microphone permission denied.');
+      _textController.text = 'Microphone permission denied.';
       return;
     }
 
     setState(() {
-      _transcript = ''; // Clear old text for a cleaner start
+      // 🆕 Only clear on first start, not on resume
+      if (_fullTranscript.isEmpty || _fullTranscript == 'Press the microphone to start speaking...') {
+        _fullTranscript = '';
+        _textController.clear();
+      }
+      _currentSegment = '';
       _isListening = true;
     });
 
@@ -71,13 +86,30 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
       _deepgramSubscription = _liveListener!.stream.listen((result) {
         if (result.transcript != null && result.transcript!.isNotEmpty) {
           setState(() {
-            _transcript = result.transcript!;
+            // 🆕 Check if this is a final result
+            if (result.isFinal ?? false) {
+              // Add to full transcript with a space
+              _fullTranscript += (_fullTranscript.isEmpty ? '' : ' ') + result.transcript!;
+              _currentSegment = '';
+            } else {
+              // This is interim, just update current segment
+              _currentSegment = result.transcript!;
+            }
+
+            // 🆕 Display full transcript + current segment
+            _textController.text = _fullTranscript +
+                (_currentSegment.isEmpty ? '' : (_fullTranscript.isEmpty ? '' : ' ') + _currentSegment);
+
+            // Auto-scroll to the end
+            _textController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _textController.text.length),
+            );
           });
         }
       }, onError: (error) {
         print('Deepgram error: $error');
         setState(() {
-          _transcript = 'Error: $error';
+          _textController.text = 'Error: $error';
         });
       });
 
@@ -85,7 +117,7 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
 
     } catch (e) {
       setState(() {
-        _transcript = 'Error: $e';
+        _textController.text = 'Error: $e';
         _isListening = false;
       });
       print('Error starting listener: $e');
@@ -102,24 +134,83 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
     _liveListener = null;
 
     setState(() {
+      // 🆕 Commit any remaining current segment to full transcript
+      if (_currentSegment.isNotEmpty) {
+        _fullTranscript += (_fullTranscript.isEmpty ? '' : ' ') + _currentSegment;
+        _currentSegment = '';
+        _textController.text = _fullTranscript;
+      }
       _isListening = false;
-      // Logic kept, but handled mostly by UI state now
     });
+  }
+
+  // 🆕 Generate Grammar Report Function
+  void _generateReport() async {
+    // Get the text from the text box
+    final textToAnalyze = _textController.text.trim();
+
+    // Validate text
+    if (textToAnalyze.isEmpty ||
+        textToAnalyze == 'Press the microphone to start speaking...') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please record some text first!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isAnalyzing = true;
+    });
+
+    try {
+      // Call the grammar API
+      final result = await GrammarApiService.analyzeText(textToAnalyze);
+
+      // Navigate to report screen
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GrammarReportScreen(result: result),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error analyzing text: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
     _stopListening();
     _recorder.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
-  // --- UI Build (Completely Redesigned) ---
+  // --- UI Build ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB), // Soft grey-blue background
+      backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
         title: const Text(
           'Transcription',
@@ -165,7 +256,7 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
               ),
             ),
 
-            // 2. Main Transcript Card
+            // 2. Main Transcript Card with TextField
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -183,21 +274,22 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: SingleChildScrollView(
+                  child: Padding(
                     padding: const EdgeInsets.all(24.0),
-                    child: Text(
-                      _transcript.isEmpty && _isListening
-                          ? '...' // Placeholder while waiting for first word
-                          : _transcript,
-                      style: TextStyle(
+                    child: TextField(
+                      controller: _textController,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      style: const TextStyle(
                         fontSize: 22.0,
                         height: 1.6,
-                        color: _transcript.startsWith('Press') || _transcript.startsWith('Error')
-                            ? Colors.grey[400]
-                            : Colors.black87,
+                        color: Colors.black87,
                         fontWeight: FontWeight.w500,
                       ),
-                      textAlign: TextAlign.left,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
                   ),
                 ),
@@ -206,7 +298,67 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
 
             const SizedBox(height: 20),
 
-            // 3. Bottom Controls (Animated Button)
+            // 3. 🆕 Generate Report Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isAnalyzing ? null : _generateReport,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    disabledBackgroundColor: Colors.grey,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: _isAnalyzing
+                      ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Analyzing...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  )
+                      : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.assessment, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        'Generate Report',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 4. Bottom Controls (Animated Button)
             SizedBox(
               height: 150,
               child: Center(
@@ -218,7 +370,7 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
                     height: _isListening ? 80 : 70,
                     width: _isListening ? 80 : 70,
                     decoration: BoxDecoration(
-                      color: _isListening ? Colors.redAccent : const Color(0xFF4F46E5), // Indigo
+                      color: _isListening ? Colors.redAccent : const Color(0xFF4F46E5),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(

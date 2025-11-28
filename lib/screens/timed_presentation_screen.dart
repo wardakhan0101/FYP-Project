@@ -1,15 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-
-import 'chat_screen.dart';
-
-void main() {
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: PresentationPracticeScreen(),
-  ));
-}
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'homophone_corrector.dart'; // Make sure this import path is correct
 
 class PresentationPracticeScreen extends StatefulWidget {
   const PresentationPracticeScreen({super.key});
@@ -19,12 +12,21 @@ class PresentationPracticeScreen extends StatefulWidget {
 }
 
 class _PresentationPracticeScreenState extends State<PresentationPracticeScreen> {
-  // Logic Variables
+  // Timer Variables
   Timer? _timer;
   int _totalSeconds = 180;
   int _remainingSeconds = 180;
-  bool _isRecording = true;
+  bool _isRecording = false; // Changed to false - timer won't start automatically
   String _currentTopic = "";
+
+  // Speech-to-Text Variables
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  bool _isInitialized = false;
+  String _recognizedText = '';
+  String _currentText = '';
+  double _confidence = 0.0;
+  final HomophoneCorrector _corrector = HomophoneCorrector();
 
   // Data
   final List<String> _topics = [
@@ -39,16 +41,18 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
   void initState() {
     super.initState();
     _pickRandomTopic();
-    _startTimer();
+    // Removed _startTimer() - timer will start when mic is clicked
+    _initializeSpeech();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _speech.stop();
     super.dispose();
   }
 
-  // --- Logic Methods ---
+  // --- Timer Methods ---
 
   void _pickRandomTopic() {
     setState(() {
@@ -92,6 +96,131 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
     return "$minutes:$seconds";
   }
 
+  // --- Speech-to-Text Methods ---
+
+  Future<void> _initializeSpeech() async {
+    _speech = stt.SpeechToText();
+    bool available = await _speech.initialize(
+      onStatus: (status) {
+        debugPrint('Speech status: $status');
+        if (status == 'done' || status == 'notListening') {
+          setState(() {
+            _isListening = false;
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint('Speech error: $error');
+        setState(() {
+          _isListening = false;
+        });
+        _showMessage('Error: ${error.errorMsg}');
+      },
+    );
+
+    setState(() {
+      _isInitialized = available;
+    });
+
+    if (!available) {
+      _showMessage('Speech recognition not available');
+    }
+  }
+
+  Future<void> _startListening() async {
+    if (!_isInitialized) {
+      _showMessage('Please wait, initializing...');
+      return;
+    }
+
+    // Start the timer when microphone is first clicked
+    if (!_isRecording) {
+      setState(() {
+        _isRecording = true;
+      });
+      _startTimer();
+    }
+
+    setState(() {
+      _isListening = true;
+      _currentText = '';
+    });
+
+    await _speech.listen(
+      onResult: (result) {
+        setState(() {
+          String rawText = result.recognizedWords;
+          String correctedText = _corrector.correctText(rawText);
+          correctedText = _corrector.enhanceText(correctedText);
+
+          _currentText = correctedText;
+          _confidence = result.confidence;
+
+          if (result.finalResult) {
+            if (_recognizedText.isNotEmpty) {
+              _recognizedText += ' ';
+            }
+            _recognizedText += correctedText;
+            _currentText = '';
+
+            // Automatically restart listening after finalResult to keep continuous recording
+            // FIXED: Removed _isListening check - only check if mounted
+            if (mounted) {
+              _startListening();
+            }
+          }
+        });
+      },
+      // Continuous listening settings
+      listenFor: const Duration(seconds: 30), // Listen in 30-second chunks
+      pauseFor: const Duration(seconds: 30), // Allow long pauses
+      partialResults: true,
+      cancelOnError: false, // Don't cancel on errors
+      listenMode: stt.ListenMode.dictation, // Changed to dictation mode for continuous speech
+    );
+  }
+
+  Future<void> _stopListening() async {
+    await _speech.stop();
+    setState(() {
+      _isListening = false;
+      if (_currentText.isNotEmpty) {
+        if (_recognizedText.isNotEmpty) {
+          _recognizedText += ' ';
+        }
+        _recognizedText += _currentText;
+        _currentText = '';
+      }
+    });
+  }
+
+  void _toggleListening() {
+    if (_isListening) {
+      _stopListening();
+    } else {
+      _startListening();
+    }
+  }
+
+  void _clearText() {
+    setState(() {
+      _recognizedText = '';
+      _currentText = '';
+      _confidence = 0.0;
+    });
+  }
+
+  void _showMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   // --- UI Build ---
 
   @override
@@ -103,13 +232,7 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ChatScreen(),
-              ),
-            );
-          },
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           "Presentation Practice",
@@ -141,18 +264,18 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
               ),
             ),
 
-            const SizedBox(height: 50),
+            const SizedBox(height: 30),
 
             // 2. Circular Timer
             Stack(
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  width: 200,
-                  height: 200,
+                  width: 180,
+                  height: 180,
                   child: CircularProgressIndicator(
                     value: _remainingSeconds / _totalSeconds,
-                    strokeWidth: 12,
+                    strokeWidth: 10,
                     backgroundColor: Colors.grey[200],
                     color: Colors.deepPurple,
                     strokeCap: StrokeCap.round,
@@ -164,7 +287,7 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
                     Text(
                       _timerString,
                       style: const TextStyle(
-                        fontSize: 48,
+                        fontSize: 40,
                         fontWeight: FontWeight.bold,
                         color: Colors.deepPurple,
                       ),
@@ -172,78 +295,173 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
                     const SizedBox(height: 4),
                     const Text(
                       "Time Remaining",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ],
                 ),
               ],
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
-            // 3. Recording Status Indicator
-            if (_isRecording)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.redAccent,
+            // 3. Microphone Button with Status
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: _toggleListening,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: _isListening ? Colors.red.shade400 : Colors.deepOrange,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_isListening ? Colors.red : Colors.deepOrange).withOpacity(0.4),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.mic : Icons.mic_none,
+                      color: Colors.white,
+                      size: 28,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "Recording...",
-                    style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(width: 8),
-                  const AudioWaveVisualizer(), // Custom animated widget below
-                ],
-              )
-            else
-              const Text(
-                "Paused",
-                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
-              ),
-
-            const Spacer(),
-
-            // 4. Main Action Button
-            GestureDetector(
-              onTap: _toggleRecording,
-              child: Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.deepOrange,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.deepOrange.withOpacity(0.4),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _isListening ? "Recording..." : "Tap mic to start",
+                      style: TextStyle(
+                        color: _isListening ? Colors.red.shade400 : Colors.grey,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
+                    if (_confidence > 0)
+                      Text(
+                        "Confidence: ${(_confidence * 100).toStringAsFixed(0)}%",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 11,
+                        ),
+                      ),
                   ],
                 ),
-                child: Icon(
-                  _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                  color: Colors.white,
-                  size: 32,
+                if (_isListening) ...[
+                  const SizedBox(width: 12),
+                  const AudioWaveVisualizer(),
+                ],
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // 4. Transcription Display Box
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Your Speech",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          if (_recognizedText.isNotEmpty || _currentText.isNotEmpty)
+                            GestureDetector(
+                              onTap: _clearText,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  "Clear",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      if (_recognizedText.isEmpty && _currentText.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: Text(
+                              'Tap the microphone and start speaking...',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_recognizedText.isNotEmpty)
+                              Text(
+                                _recognizedText,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.black87,
+                                  height: 1.5,
+                                ),
+                              ),
+                            if (_currentText.isNotEmpty)
+                              Text(
+                                _currentText,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.blue.shade700,
+                                  height: 1.5,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // 5. Footer Text
             const Text(
               "Speak clearly and at a steady pace",
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -251,7 +469,7 @@ class _PresentationPracticeScreenState extends State<PresentationPracticeScreen>
   }
 }
 
-// Simple widget to simulate audio bars moving
+// Audio Wave Visualizer Widget
 class AudioWaveVisualizer extends StatefulWidget {
   const AudioWaveVisualizer({super.key});
 

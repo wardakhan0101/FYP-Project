@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
-  flutter_gemma: ^0.11.12
+#  flutter_gemma: ^0.11.12
   file_picker: ^8.1.2
   google_fonts: ^6.2.1
   sherpa_onnx: ^1.10.30
@@ -47,6 +47,7 @@ dependencies:
   speech_to_text: ^7.3.0
   flutter_dotenv: ^5.1.0
   http: ^1.6.0
+  deepgram_speech_to_text: ^4.1.0
 
 
 dev_dependencies:

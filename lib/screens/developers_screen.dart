@@ -6,6 +6,8 @@ import 'package:lingua_franca/services/auth_service.dart';
 import 'package:lingua_franca/screens/login_screen.dart';
 import 'package:lingua_franca/screens/native_stt_screen.dart';
 
+import 'chat_screen.dart';
+
 class DevelopersScreen extends StatelessWidget {
   const DevelopersScreen({super.key});
 

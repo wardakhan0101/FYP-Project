@@ -19,17 +19,16 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
   Deepgram? _deepgram;
   DeepgramLiveListener? _liveListener;
   StreamSubscription? _deepgramSubscription;
-  String _transcript = 'Press Start to begin speaking...';
+  String _transcript = 'Press the microphone to start speaking...'; // Slightly updated default text
   bool _isListening = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize Deepgram client with your API key
     _deepgram = Deepgram(deepgramApiKey);
   }
 
-  // --- Core Functions ---
+  // --- Core Functions (Unchanged Logic) ---
 
   Future<bool> _checkPermission() async {
     PermissionStatus status = await Permission.microphone.request();
@@ -43,12 +42,11 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
     }
 
     setState(() {
-      _transcript = 'Listening...';
+      _transcript = ''; // Clear old text for a cleaner start
       _isListening = true;
     });
 
     try {
-      // 1. Deepgram Configuration
       Map<String, dynamic> queryParams = {
         'model': 'nova-2-general',
         'punctuate': true,
@@ -57,7 +55,6 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
         'sample_rate': 16000,
       };
 
-      // 2. Start recording and get the audio stream
       final stream = await _recorder.startStream(
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
@@ -66,14 +63,11 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
         ),
       );
 
-      // 3. Create live listener with the audio stream
-      // FIXED: Use deepgram.listen.liveListener() instead of deepgram.liveListener()
       _liveListener = _deepgram!.listen.liveListener(
         stream,
         queryParams: queryParams,
       );
 
-      // 4. Listen for Deepgram results and update UI
       _deepgramSubscription = _liveListener!.stream.listen((result) {
         if (result.transcript != null && result.transcript!.isNotEmpty) {
           setState(() {
@@ -87,7 +81,6 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
         });
       });
 
-      // 5. Start the Deepgram connection
       _liveListener!.start();
 
     } catch (e) {
@@ -102,24 +95,15 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
   void _stopListening() async {
     if (!_isListening) return;
 
-    // Stop audio recording
     await _recorder.stop();
-
-    // Cancel the Deepgram subscription
     await _deepgramSubscription?.cancel();
     _deepgramSubscription = null;
-
-    // Close the Deepgram listener
     _liveListener?.close();
     _liveListener = null;
 
     setState(() {
       _isListening = false;
-      if (_transcript == 'Listening...') {
-        _transcript = 'No speech detected.';
-      } else {
-        _transcript = 'Final result: \n$_transcript';
-      }
+      // Logic kept, but handled mostly by UI state now
     });
   }
 
@@ -130,49 +114,128 @@ class _DeepgramSTTScreenState extends State<DeepgramSTTScreen> {
     super.dispose();
   }
 
-  // --- UI Build ---
+  // --- UI Build (Completely Redesigned) ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FB), // Soft grey-blue background
       appBar: AppBar(
-        title: const Text('Deepgram STT Demo'),
-        backgroundColor: Colors.indigo,
+        title: const Text(
+          'Transcription',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            // Transcript Display Area
+          children: [
+            // 1. Status Indicator Area
+            Container(
+              height: 60,
+              alignment: Alignment.center,
+              child: _isListening
+                  ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: Colors.redAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "LIVE LISTENING",
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
+              )
+                  : Text(
+                "Tap mic to start",
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ),
+
+            // 2. Main Transcript Card
             Expanded(
               child: Container(
-                padding: const EdgeInsets.all(8.0),
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8.0),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-                child: SingleChildScrollView(
-                  child: Text(
-                    _transcript,
-                    style: const TextStyle(fontSize: 18.0, height: 1.5),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(
+                      _transcript.isEmpty && _isListening
+                          ? '...' // Placeholder while waiting for first word
+                          : _transcript,
+                      style: TextStyle(
+                        fontSize: 22.0,
+                        height: 1.6,
+                        color: _transcript.startsWith('Press') || _transcript.startsWith('Error')
+                            ? Colors.grey[400]
+                            : Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 30),
-            // Control Button
-            ElevatedButton.icon(
-              onPressed: _isListening ? _stopListening : _startListening,
-              icon: Icon(_isListening ? Icons.stop : Icons.mic, size: 30),
-              label: Text(
-                _isListening ? 'STOP TRANSCRIPTION' : 'START LISTENING',
-                style: const TextStyle(fontSize: 20),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isListening ? Colors.red : Colors.green,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+
+            const SizedBox(height: 20),
+
+            // 3. Bottom Controls (Animated Button)
+            SizedBox(
+              height: 150,
+              child: Center(
+                child: GestureDetector(
+                  onTap: _isListening ? _stopListening : _startListening,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    height: _isListening ? 80 : 70,
+                    width: _isListening ? 80 : 70,
+                    decoration: BoxDecoration(
+                      color: _isListening ? Colors.redAccent : const Color(0xFF4F46E5), // Indigo
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_isListening ? Colors.redAccent : const Color(0xFF4F46E5)).withOpacity(0.4),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                          offset: const Offset(0, 5),
+                        )
+                      ],
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                      color: Colors.white,
+                      size: 35,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lingua_franca/screens/chat_screen.dart';
 import 'package:lingua_franca/screens/developers_screen.dart';
 import 'package:lingua_franca/screens/profile_screen.dart';
+import 'package:lingua_franca/screens/timed_presentation_screen.dart';
 
 // -----------------------------------------------------------
 // 1. CUSTOM PAINTER FOR GRADIENT CIRCULAR PROGRESS
@@ -145,7 +146,7 @@ class HomeScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const ChatScreen(),
+                          builder: (context) => const PresentationPracticeScreen(),
                         ),
                       );
                     },

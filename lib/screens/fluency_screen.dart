@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui'; // Added for UI effects
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class FluencyScreen extends StatefulWidget {
@@ -19,8 +21,7 @@ class _FluencyScreenState extends State<FluencyScreen> {
   List<Map<String, dynamic>> _fluencyIssues = [];
 
   // REPLACE WITH YOUR KEY
-  final String _deepgramApiKey = '5ee8e833797fdac6fecdac3c7ae50d5ab037ab19';
-
+  final stt = dotenv.env['STT'];
   @override
   void initState() {
     super.initState();
@@ -66,7 +67,7 @@ class _FluencyScreenState extends State<FluencyScreen> {
       final response = await http.post(
         url,
         headers: {
-          'Authorization': 'Token $_deepgramApiKey',
+          'Authorization': 'Token $stt',
           'Content-Type': 'audio/wav',
         },
         body: audioBytes,
@@ -276,112 +277,223 @@ class _FluencyScreenState extends State<FluencyScreen> {
     }
   }
 
+  // --- UI SECTION ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Container(
+          margin: const EdgeInsets.only(left: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
         title: const Text(
           'Fluency Report',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: Container(
+        decoration: const BoxDecoration(
+          // Lingua Franca Theme Gradient
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF4FACFE), // Login Light Blue
+              Color(0xFF8A4FFF), // Login Purple
+            ],
+          ),
+        ),
+        child: Stack(
           children: [
-            // Transcript Section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Your Transcript:",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _transcript.isEmpty ? "No speech detected." : _transcript,
-                    style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
-                  ),
-                ],
+            // Decorative Background Circle
+            Positioned(
+              top: -100,
+              right: -50,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
 
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Fluency Issues",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _fluencyIssues.isEmpty ? Colors.green : Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    "${_fluencyIssues.length} Issues",
-                    style: TextStyle(
-                      color: _fluencyIssues.isEmpty ? Colors.white : Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Dynamic Mistake Cards
-            if (_fluencyIssues.isEmpty)
-              Center(
+            // Content
+            SafeArea(
+              child: _isLoading
+                  ? Center(
                 child: Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle, size: 64, color: Colors.green),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "Great job! No fluency issues detected.",
-                        style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w500),
-                        textAlign: TextAlign.center,
-                      ),
+                      CircularProgressIndicator(color: Color(0xFF8A4FFF)),
+                      SizedBox(height: 16),
+                      Text("Analyzing Fluency...", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8A4FFF))),
                     ],
                   ),
                 ),
               )
-            else
-              ..._fluencyIssues.map((issue) => Column(
-                children: [
-                  _buildFluencyCard(
-                    title: issue['title'],
-                    errorText: issue['errorText'],
-                    explanation: issue['explanation'],
-                    suggestions: issue['suggestions'],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              )),
+                  : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Transcript Section
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9FAFB),
+                              border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(20),
+                                topRight: Radius.circular(20),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.record_voice_over_rounded, size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "TRANSCRIPT ANALYSIS",
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(
+                              _transcript.isEmpty ? "No speech detected." : _transcript,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                height: 1.6,
+                                color: Color(0xFF1F2937),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // 2. Header for Issues
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Areas for Improvement",
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            "${_fluencyIssues.length} Found",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 3. Dynamic Mistake Cards
+                    if (_fluencyIssues.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(32),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.verified_rounded, size: 64, color: Color(0xFF34D399)),
+                            SizedBox(height: 16),
+                            Text(
+                              "Excellent Fluency!",
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              "No major issues detected. Keep up the great work!",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 15, color: Color(0xFF6B7280)),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ..._fluencyIssues.map((issue) => Column(
+                        children: [
+                          _buildFluencyCard(
+                            title: issue['title'],
+                            errorText: issue['errorText'],
+                            explanation: issue['explanation'],
+                            suggestions: issue['suggestions'],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      )),
+
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -394,61 +506,132 @@ class _FluencyScreenState extends State<FluencyScreen> {
     required String explanation,
     required List<String> suggestions,
   }) {
+    // Define an icon based on title for extra polish
+    IconData icon;
+    Color accentColor;
+
+    if (title.contains("SPEED")) {
+      icon = Icons.speed_rounded;
+      accentColor = const Color(0xFF3B82F6); // Blue
+    } else if (title.contains("PACING")) {
+      icon = Icons.timer_off_outlined;
+      accentColor = const Color(0xFFF59E0B); // Amber
+    } else if (title.contains("FILLER")) {
+      icon = Icons.graphic_eq_rounded;
+      accentColor = const Color(0xFFEF4444); // Red
+    } else {
+      icon = Icons.loop_rounded;
+      accentColor = const Color(0xFF8B5CF6); // Purple
+    }
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade100),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.grey.shade100, blurRadius: 4, offset: const Offset(0, 2))
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.close, color: Colors.red, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    errorText,
-                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 16),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: accentColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: accentColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Error Highlight Box
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accentColor.withValues(alpha: 0.1)),
+            ),
+            child: Text(
+              errorText,
+              style: TextStyle(
+                  color: accentColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16
+              ),
             ),
           ),
+
           const SizedBox(height: 12),
-          Text(explanation, style: TextStyle(color: Colors.grey.shade700, fontSize: 14)),
-          const SizedBox(height: 12),
-          const Text("Suggestions:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+
+          Text(
+            explanation,
+            style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14, height: 1.5),
+          ),
+
+          const SizedBox(height: 16),
+
+          const Text(
+            "SUGGESTIONS",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+              color: Color(0xFF9CA3AF),
+              letterSpacing: 1.0,
+            ),
+          ),
           const SizedBox(height: 8),
+
           Wrap(
             spacing: 8.0,
-            runSpacing: 4.0,
+            runSpacing: 8.0,
             children: suggestions.map((suggestion) {
-              return Chip(
-                avatar: const Icon(Icons.check, color: Colors.green, size: 18),
-                label: Text(suggestion, style: const TextStyle(color: Colors.green)),
-                backgroundColor: Colors.green.shade50,
-                side: BorderSide.none,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      suggestion,
+                      style: const TextStyle(
+                          color: Color(0xFF374151),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600
+                      ),
+                    ),
+                  ],
+                ),
               );
             }).toList(),
           ),

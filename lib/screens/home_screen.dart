@@ -5,10 +5,6 @@ import 'package:lingua_franca/screens/profile_screen.dart';
 import 'package:lingua_franca/screens/stt_test.dart';
 import 'package:lingua_franca/screens/timed_presentation_screen.dart';
 
-// -----------------------------------------------------------
-// 1. CUSTOM PAINTER FOR GRADIENT CIRCULAR PROGRESS
-// -----------------------------------------------------------
-
 class _CircularProgressPainter extends CustomPainter {
   final double progress;
   final Color primaryColor;
@@ -28,9 +24,8 @@ class _CircularProgressPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - strokeWidth / 2;
-    const double startAngle = -3.14159 / 2; // -90 degrees (top)
+    const double startAngle = -3.14159 / 2;
 
-    // 1. Draw the Track (Background Circle)
     final trackPaint = Paint()
       ..color = trackColor
       ..strokeWidth = strokeWidth
@@ -38,7 +33,6 @@ class _CircularProgressPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius, trackPaint);
 
-    // 2. Draw the Progress Arc with Gradient
     final rect = Rect.fromCircle(center: center, radius: radius);
     final progressSweepAngle = 3.14159 * 2 * progress;
 
@@ -53,26 +47,15 @@ class _CircularProgressPainter extends CustomPainter {
       ).createShader(rect);
 
     if (progress > 0) {
-      canvas.drawArc(
-        rect,
-        startAngle,
-        progressSweepAngle,
-        false,
-        progressPaint,
-      );
+      canvas.drawArc(rect, startAngle, progressSweepAngle, false, progressPaint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _CircularProgressPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.primaryColor != primaryColor;
+    return oldDelegate.progress != progress || oldDelegate.primaryColor != primaryColor;
   }
 }
-
-// -----------------------------------------------------------
-// 2. WIDGET WRAPPER FOR THE CUSTOM PAINTER
-// -----------------------------------------------------------
 
 class GradientCircularProgress extends StatelessWidget {
   final double progress;
@@ -92,7 +75,7 @@ class GradientCircularProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final gradientColors = [
       primaryColor,
-      primaryColor.withOpacity(0.8),
+      const Color(0xFFD9BFFF),
     ];
 
     return CustomPaint(
@@ -108,27 +91,23 @@ class GradientCircularProgress extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------
-// 3. HOME SCREEN IMPLEMENTATION
-// -----------------------------------------------------------
-
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Brand Colors
     final Color primaryPurple = const Color(0xFF8A48F0);
-    final Color secondaryPurple = const Color(0xFFD9BFFF);
     final Color softBackground = const Color(0xFFF7F7FA);
     final Color textDark = const Color(0xFF101828);
     final Color textGrey = const Color(0xFF667085);
 
     return Scaffold(
       backgroundColor: softBackground,
-      // 2. Pass 'context' to the builder method
       bottomNavigationBar: _buildBottomNavBar(context, primaryPurple),
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
             child: Column(
@@ -136,26 +115,29 @@ class HomeScreen extends StatelessWidget {
               children: [
                 _buildHeader(context, primaryPurple, textDark),
                 const SizedBox(height: 24),
-                _buildWelcomeBanner(primaryPurple, secondaryPurple),
+                _buildWelcomeBanner(primaryPurple),
                 const SizedBox(height: 24),
+
+                // Progress Card (Shows 0% - New User State)
                 _buildProgressCard(primaryPurple, textDark, textGrey),
+
                 const SizedBox(height: 24),
+
+                // MAIN ACTION - This is the only "Active" looking button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const SttTest(),
-                        ),
+                        MaterialPageRoute(builder: (context) => const SttTest()),
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryPurple,
                       foregroundColor: Colors.white,
-                      elevation: 4,
-                      shadowColor: primaryPurple.withOpacity(0.4),
+                      elevation: 8,
+                      shadowColor: primaryPurple.withOpacity(0.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -170,15 +152,29 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 32),
+
+                // UNIMPLEMENTED SECTION 1: Streak (Greyed Out)
                 _buildSectionTitle('Weekly Practice Streak', textDark),
-                const SizedBox(height: 12),
-                _buildStreakRow(Colors.white, primaryPurple),
-                const SizedBox(height: 24),
-                _buildSectionTitle('Your Achievements', textDark),
-                const SizedBox(height: 12),
-                _buildAchievementsRow(Colors.white, textDark),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                _buildStreakRow(Colors.white),
+
+                const SizedBox(height: 32),
+
+                // UNIMPLEMENTED SECTION 2: Achievements (Locked)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSectionTitle('Your Achievements', textDark),
+                    // "View All" is grey to suggest disabled
+                    Text("View All", style: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildAchievementsRow(Colors.white),
+
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -196,27 +192,48 @@ class HomeScreen extends StatelessWidget {
         Text(
           'Lingua Franca',
           style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
             color: primary,
+            letterSpacing: -0.5,
           ),
         ),
         Row(
           children: [
-            Row(
-              children: [
-                const Icon(Icons.local_fire_department, color: Color(0xFFFF0000), size: 20),
-                const SizedBox(width: 4),
-                Text('0 days', style: TextStyle(fontWeight: FontWeight.bold, color: textDark)),
-              ],
+            // Streak (Zero State, BUT COLORFUL ICON)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  // 🔥 RESTORED COLOR: Red/Orange for Fire
+                  const Icon(Icons.local_fire_department_rounded, color: Color(0xFFFF512F), size: 18),
+                  const SizedBox(width: 4),
+                  Text('0', style: TextStyle(fontWeight: FontWeight.bold, color: textDark, fontSize: 12)),
+                ],
+              ),
             ),
-            const SizedBox(width: 12),
-            Row(
-              children: [
-                const Icon(Icons.flash_on, color: Color(0xFFFF9900), size: 20),
-                const SizedBox(width: 4),
-                Text('0 pts', style: TextStyle(fontWeight: FontWeight.bold, color: textDark)),
-              ],
+            const SizedBox(width: 8),
+            // Points (Zero State, BUT COLORFUL ICON)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  // ⚡ RESTORED COLOR: Gold for Lightning
+                  const Icon(Icons.flash_on_rounded, color: Color(0xFFFFD700), size: 18),
+                  const SizedBox(width: 4),
+                  Text('0', style: TextStyle(fontWeight: FontWeight.bold, color: textDark, fontSize: 12)),
+                ],
+              ),
             ),
             const SizedBox(width: 12),
             GestureDetector(
@@ -225,10 +242,17 @@ class HomeScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (context) => const DevelopersScreen()),
                 );
               },
-              child: CircleAvatar(
-                backgroundColor: primary.withOpacity(0.1),
-                radius: 18,
-                child: Icon(Icons.bug_report, color: primary, size: 20),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  shape: BoxShape.circle,
+                ),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.grey.shade300,
+                  child: Icon(Icons.bug_report_outlined, color: Colors.grey.shade500, size: 20),
+                ),
               ),
             ),
           ],
@@ -237,18 +261,26 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWelcomeBanner(Color primary, Color accent) {
+  Widget _buildWelcomeBanner(Color primary) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        // ✨ NEW: Subtle Gradient Background (The "Fancy" Touch)
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF9F5FF), // Very light purple
+            const Color(0xFFF0E6FF), // Slightly deeper light purple
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        // Removed border to let gradient shine
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
+            color: const Color(0xFF8A48F0).withOpacity(0.08), // Colored shadow
+            blurRadius: 15,
             offset: const Offset(0, 4),
           ),
         ],
@@ -256,25 +288,36 @@ class HomeScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Welcome Back!',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF344054),
-            ),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome User!',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF344054),
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                "Let's start your journey.",
+                style: TextStyle(color: Color(0xFF667085), fontSize: 14),
+              ),
+            ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: accent,
+              color: Colors.white.withOpacity(0.6), // Glass-like feel
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white),
             ),
             child: Text(
-              'Intermediate B2',
+              'Beginner A1',
               style: TextStyle(
                 color: primary,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),
             ),
@@ -285,20 +328,21 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildProgressCard(Color primary, Color textDark, Color textGrey) {
+    // 0% Progress - New User
     final double currentProgress = 0.0;
     final String currentProgressText = '0%';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
           BoxShadow(
-            color: primary.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -313,7 +357,7 @@ class HomeScreen extends StatelessWidget {
               color: textDark,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -322,15 +366,16 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatRow('Speaking', '0/100', 0.0, primary),
-                    const SizedBox(height: 12),
-                    _buildStatRow('Fluency', '0%', 0.0, primary),
-                    const SizedBox(height: 12),
-                    _buildStatRow('Grammar', '0%', 0.0, primary),
+                    // All stats at 0
+                    _buildStatRow('Speaking', '0/100', 0.0, textDark),
+                    const SizedBox(height: 16),
+                    _buildStatRow('Fluency', '0%', 0.0, textDark),
+                    const SizedBox(height: 16),
+                    _buildStatRow('Grammar', '0%', 0.0, textDark),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 20),
               Expanded(
                 flex: 2,
                 child: AspectRatio(
@@ -338,19 +383,25 @@ class HomeScreen extends StatelessWidget {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
+                      // Track color only, no progress
                       GradientCircularProgress(
                         progress: currentProgress,
                         primaryColor: primary,
-                        trackColor: Colors.grey.shade200,
-                        strokeWidth: 12,
+                        trackColor: const Color(0xFFF2F4F7),
+                        strokeWidth: 14,
                       ),
-                      Text(
-                        currentProgressText,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: textDark,
-                        ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            currentProgressText,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: textDark,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -358,55 +409,32 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: textDark,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text(
-                'View Detailed Report',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatRow(String label, String value, double pct, Color color) {
-    return Row(
+  Widget _buildStatRow(String label, String value, double pct, Color textDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 70,
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF475467)),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade500)),
+            Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey.shade700)), // Grey value
+          ],
         ),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: pct,
-              minHeight: 8,
-              backgroundColor: Colors.grey.shade200,
-              color: color,
-            ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: LinearProgressIndicator(
+            value: pct,
+            minHeight: 6,
+            backgroundColor: const Color(0xFFF2F4F7),
+            // Grey progress bar to indicate empty
+            color: Colors.grey.shade300,
           ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -419,11 +447,12 @@ class HomeScreen extends StatelessWidget {
         fontSize: 18,
         fontWeight: FontWeight.bold,
         color: color,
+        letterSpacing: -0.5,
       ),
     );
   }
 
-  Widget _buildStreakRow(Color bg, Color primary) {
+  Widget _buildStreakRow(Color bg) {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Container(
@@ -431,12 +460,11 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -447,21 +475,25 @@ class HomeScreen extends StatelessWidget {
             children: [
               Text(
                 day,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade400, // Inactive text
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Container(
-                width: 34,
-                height: 34,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Colors.grey.shade50, // Empty
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade300, width: 2),
+                  border: Border.all(
+                      color: Colors.grey.shade200,
+                      width: 2
+                  ),
                 ),
+                // No Child (Icon) means empty
               ),
             ],
           );
@@ -470,62 +502,68 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAchievementsRow(Color bg, Color textDark) {
-    Color inactiveColor = Colors.grey.shade400;
-
+  Widget _buildAchievementsRow(Color bg) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildBadge(Icons.star, 'Master', inactiveColor),
-          _buildBadge(Icons.mic, 'Pronounce', inactiveColor),
-          _buildBadge(Icons.emoji_events, 'Grammar', inactiveColor),
-          _buildBadge(Icons.book, 'Vocab', inactiveColor),
+          // All Badges are Grey (Locked State)
+          _buildLockedBadge(Icons.star_rounded, 'Master'),
+          _buildLockedBadge(Icons.mic_rounded, 'Pro'),
+          _buildLockedBadge(Icons.emoji_events_rounded, 'Guru'),
+          _buildLockedBadge(Icons.menu_book_rounded, 'Vocab'),
         ],
       ),
     );
   }
 
-  Widget _buildBadge(IconData icon, String label, Color color) {
+  Widget _buildLockedBadge(IconData icon, String label) {
     return Column(
       children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: Colors.grey.shade100,
-          child: Icon(icon, color: color, size: 24),
+        Container(
+          width: 56, height: 56,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100, // Grey background
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.grey.shade400, size: 28), // Grey icon
         ),
         const SizedBox(height: 8),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF475467)),
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade400 // Grey label
+          ),
         ),
       ],
     );
   }
 
-  // 3. UPDATED NAV BAR WITH ONTAP LOGIC
+  // --- BOTTOM NAV BAR ---
   Widget _buildBottomNavBar(BuildContext context, Color primary) {
     return Container(
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 10,
-            offset: const Offset(0, -2),
+            offset: const Offset(0, -5),
           ),
         ],
       ),
@@ -533,11 +571,11 @@ class HomeScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         selectedItemColor: primary,
-        unselectedItemColor: Colors.grey.shade500,
+        unselectedItemColor: Colors.grey.shade400,
         type: BottomNavigationBarType.fixed,
+        showUnselectedLabels: true,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
-        // Add onTap listener
+        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         onTap: (index) {
           if (index == 1){
             Navigator.of(context).push(
@@ -547,7 +585,6 @@ class HomeScreen extends StatelessWidget {
             );
           }
           if (index == 3) {
-            // Index 3 is Profile
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => const ProfileScreen(),
@@ -556,10 +593,10 @@ class HomeScreen extends StatelessWidget {
           }
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.mic), label: 'Practice'),
-          BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'Progress'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.mic_rounded), label: 'Practice'),
+          BottomNavigationBarItem(icon: Icon(Icons.pie_chart_rounded), label: 'Progress'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
         ],
       ),
     );

@@ -150,7 +150,7 @@ class DevelopersScreen extends StatelessWidget {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) =>
-                            const DeepgramSTTScreen(),
+                            const SttTest(),
                           ),
                         );
                       },

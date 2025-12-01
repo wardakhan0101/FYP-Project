@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lingua_franca/screens/chat_screen.dart';
 import 'package:lingua_franca/screens/developers_screen.dart';
 import 'package:lingua_franca/screens/profile_screen.dart';
+import 'package:lingua_franca/screens/stt_test.dart';
 import 'package:lingua_franca/screens/timed_presentation_screen.dart';
 
 // -----------------------------------------------------------
@@ -146,7 +147,7 @@ class HomeScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const PresentationPracticeScreen(),
+                          builder: (context) => const SttTest(),
                         ),
                       );
                     },
@@ -538,6 +539,13 @@ class HomeScreen extends StatelessWidget {
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         // Add onTap listener
         onTap: (index) {
+          if (index == 1){
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const SttTest(),
+              ),
+            );
+          }
           if (index == 3) {
             // Index 3 is Profile
             Navigator.of(context).push(

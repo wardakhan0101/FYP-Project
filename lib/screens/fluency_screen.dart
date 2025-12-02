@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
+import '../services/analysis_storage_service.dart';
+ // Import the storage service
+
 class FluencyScreen extends StatefulWidget {
   final String audioPath; // Path to the recorded user audio
 
@@ -19,6 +22,7 @@ class _FluencyScreenState extends State<FluencyScreen> {
   bool _isLoading = true;
   String _transcript = "";
   List<Map<String, dynamic>> _fluencyIssues = [];
+  final AnalysisStorageService _storageService = AnalysisStorageService(); // Initialize storage service
 
   // REPLACE WITH YOUR KEY
   final stt = dotenv.env['STT'];
@@ -267,6 +271,9 @@ class _FluencyScreenState extends State<FluencyScreen> {
         _fluencyIssues = issues;
         _isLoading = false;
       });
+
+      // Store results in Firebase after analysis is complete
+      _storeAnalysisResults();
     } catch (e, stackTrace) {
       debugPrint("Error processing Deepgram response: $e");
       debugPrint("Stack trace: $stackTrace");
@@ -274,6 +281,20 @@ class _FluencyScreenState extends State<FluencyScreen> {
         _transcript = "Error processing audio analysis.";
         _isLoading = false;
       });
+    }
+  }
+
+  // Store the analysis results in Firebase
+  Future<void> _storeAnalysisResults() async {
+    try {
+      await _storageService.storeFluencyAnalysis(
+        transcript: _transcript,
+        fluencyIssues: _fluencyIssues,
+        audioPath: widget.audioPath,
+      );
+    } catch (e) {
+      debugPrint("Failed to store fluency analysis in Firebase: $e");
+      // Don't show error to user, just log it
     }
   }
 

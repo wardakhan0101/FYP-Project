@@ -1,10 +1,55 @@
 import 'package:flutter/material.dart';
+import '../services/analysis_storage_service.dart';
 import '../services/grammar_api_service.dart';
 
-class GrammarReportScreen extends StatelessWidget {
+class GrammarReportScreen extends StatefulWidget {
   final GrammarAnalysisResult result;
 
   const GrammarReportScreen({super.key, required this.result});
+
+  @override
+  State<GrammarReportScreen> createState() => _GrammarReportScreenState();
+}
+
+class _GrammarReportScreenState extends State<GrammarReportScreen> {
+  final AnalysisStorageService _storageService = AnalysisStorageService();
+
+  @override
+  void initState() {
+    super.initState();
+    // Store results in Firebase when screen loads
+    _storeAnalysisResults();
+  }
+
+  // Store the analysis results in Firebase
+  Future<void> _storeAnalysisResults() async {
+    try {
+      // Convert GrammarMistake objects to Map
+      List<Map<String, dynamic>> mistakesData = widget.result.mistakes.map((mistake) {
+        return {
+          'mistakeText': mistake.mistakeText,
+          'message': mistake.message,
+          'errorType': mistake.errorType,
+          'severity': mistake.severity,
+          'suggestions': mistake.suggestions,
+        };
+      }).toList();
+
+      await _storageService.storeGrammarAnalysis(
+        originalText: widget.result.originalText,
+        correctedText: widget.result.correctedText,
+        message: widget.result.message,
+        mistakes: mistakesData,
+        mistakeCategories: widget.result.mistakeCategories,
+        totalMistakes: widget.result.summary.totalMistakes,
+        wordCount: widget.result.summary.wordCount,
+        sentenceCount: widget.result.summary.sentenceCount,
+      );
+    } catch (e) {
+      debugPrint("Failed to store grammar analysis in Firebase: $e");
+      // Don't show error to user, just log it
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +81,7 @@ class GrammarReportScreen extends StatelessWidget {
             // Original Text
             _buildTextSection(
               title: 'Original Text',
-              text: result.originalText,
+              text: widget.result.originalText,
               color: Colors.red.shade50,
               icon: Icons.edit_note,
             ),
@@ -45,17 +90,17 @@ class GrammarReportScreen extends StatelessWidget {
             // Corrected Text
             _buildTextSection(
               title: 'Corrected Text',
-              text: result.correctedText,
+              text: widget.result.correctedText,
               color: Colors.green.shade50,
               icon: Icons.check_circle_outline,
             ),
             const SizedBox(height: 20),
 
             // Mistakes List
-            if (result.mistakes.isNotEmpty) ...[
-              _buildSectionTitle('Mistakes Found (${result.mistakes.length})'),
+            if (widget.result.mistakes.isNotEmpty) ...[
+              _buildSectionTitle('Mistakes Found (${widget.result.mistakes.length})'),
               const SizedBox(height: 10),
-              ...result.mistakes.map((mistake) => _buildMistakeCard(mistake)),
+              ...widget.result.mistakes.map((mistake) => _buildMistakeCard(mistake)),
             ] else ...[
               _buildNoMistakesCard(),
             ],
@@ -63,7 +108,7 @@ class GrammarReportScreen extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Mistake Categories
-            if (result.mistakeCategories.isNotEmpty) ...[
+            if (widget.result.mistakeCategories.isNotEmpty) ...[
               _buildSectionTitle('Mistake Categories'),
               const SizedBox(height: 10),
               _buildCategoriesCard(),
@@ -76,7 +121,7 @@ class GrammarReportScreen extends StatelessWidget {
 
   Widget _buildMessageCard() {
     // Use message instead of score
-    final isPerfect = result.mistakes.isEmpty;
+    final isPerfect = widget.result.mistakes.isEmpty;
     final color = isPerfect ? Colors.green : Colors.orange;
 
     return Container(
@@ -112,7 +157,7 @@ class GrammarReportScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  result.message,
+                  widget.result.message,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -147,7 +192,7 @@ class GrammarReportScreen extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             'Mistakes',
-            result.summary.totalMistakes.toString(),
+            widget.result.summary.totalMistakes.toString(),
             Icons.error_outline,
             Colors.red,
           ),
@@ -156,7 +201,7 @@ class GrammarReportScreen extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             'Words',
-            result.summary.wordCount.toString(),
+            widget.result.summary.wordCount.toString(),
             Icons.text_fields,
             Colors.blue,
           ),
@@ -165,7 +210,7 @@ class GrammarReportScreen extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             'Sentences',
-            result.summary.sentenceCount.toString(),
+            widget.result.summary.sentenceCount.toString(),
             Icons.format_align_left,
             Colors.purple,
           ),
@@ -475,7 +520,7 @@ class GrammarReportScreen extends StatelessWidget {
         ],
       ),
       child: Column(
-        children: result.mistakeCategories.entries.map((entry) {
+        children: widget.result.mistakeCategories.entries.map((entry) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(

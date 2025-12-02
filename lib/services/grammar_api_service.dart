@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class GrammarApiService {
   // 🌐 Your deployed Cloud Run API
-  static const String baseUrl = 'https://grammar-checker-api-114833434310.us-central1.run.app';
+  static const String baseUrl = 'https://grammar-checker-114833434310.us-central1.run.app';
 
   /// Analyze text for grammar mistakes
   static Future<GrammarAnalysisResult> analyzeText(String text) async {
@@ -36,6 +36,7 @@ class GrammarAnalysisResult {
   final List<GrammarMistake> mistakes;
   final GrammarSummary summary;
   final Map<String, int> mistakeCategories;
+  final String message;
 
   GrammarAnalysisResult({
     required this.originalText,
@@ -43,6 +44,7 @@ class GrammarAnalysisResult {
     required this.mistakes,
     required this.summary,
     required this.mistakeCategories,
+    required this.message,
   });
 
   factory GrammarAnalysisResult.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,7 @@ class GrammarAnalysisResult {
           .toList() ?? [],
       summary: GrammarSummary.fromJson(json['summary'] ?? {}),
       mistakeCategories: Map<String, int>.from(json['mistake_categories'] ?? {}),
+      message: json['message'] ?? '',
     );
   }
 }
@@ -64,6 +67,7 @@ class GrammarMistake {
   final String message;
   final String mistakeText;
   final String context;
+  final Map<String, dynamic> position;
   final List<String> suggestions;
   final String severity;
 
@@ -73,6 +77,7 @@ class GrammarMistake {
     required this.message,
     required this.mistakeText,
     required this.context,
+    required this.position,
     required this.suggestions,
     required this.severity,
   });
@@ -84,6 +89,7 @@ class GrammarMistake {
       message: json['message'] ?? '',
       mistakeText: json['mistake_text'] ?? '',
       context: json['context'] ?? '',
+      position: json['position'] ?? {},
       suggestions: List<String>.from(json['suggestions'] ?? []),
       severity: json['severity'] ?? 'medium',
     );
@@ -105,7 +111,7 @@ class GrammarSummary {
 
   factory GrammarSummary.fromJson(Map<String, dynamic> json) {
     return GrammarSummary(
-      totalMistakes: json['total_mistakes'] ?? 0,
+      totalMistakes: json['total_rule_based_mistakes'] ?? 0,
       wordCount: json['word_count'] ?? 0,
       sentenceCount: json['sentence_count'] ?? 0,
       grammarScore: (json['grammar_score'] ?? 0).toDouble(),

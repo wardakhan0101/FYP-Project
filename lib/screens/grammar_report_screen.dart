@@ -25,8 +25,8 @@ class GrammarReportScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Grammar Score Card
-            _buildScoreCard(),
+            // Grammar Message Card (replaces score card)
+            _buildMessageCard(),
             const SizedBox(height: 20),
 
             // Summary Stats
@@ -74,13 +74,10 @@ class GrammarReportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildScoreCard() {
-    final score = result.summary.grammarScore;
-    final color = score >= 90
-        ? Colors.green
-        : score >= 70
-        ? Colors.orange
-        : Colors.red;
+  Widget _buildMessageCard() {
+    // Use message instead of score
+    final isPerfect = result.mistakes.isEmpty;
+    final color = isPerfect ? Colors.green : Colors.orange;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -100,38 +97,41 @@ class GrammarReportScreen extends StatelessWidget {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Grammar Score',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Grammar Analysis',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${score.toStringAsFixed(1)}/100',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(height: 12),
+                Text(
+                  result.message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          const SizedBox(width: 16),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.stars_rounded,
+            child: Icon(
+              isPerfect ? Icons.check_circle : Icons.info_outline,
               color: Colors.white,
               size: 40,
             ),

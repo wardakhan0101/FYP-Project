@@ -48,5 +48,47 @@ if [ "$CURRENT_HOST" != "0.0.0.0" ]; then
   echo "       Quit AND relaunch the Ollama menubar app now for this to take effect."
 fi
 
+# Tunnel the TTS server (Accent_engine on :8000) into every connected Android
+# device so 127.0.0.1:8000 in the Flutter client reaches the Mac. Survives
+# until the phone is unplugged or rebooted, then this script re-establishes it.
+if command -v adb >/dev/null 2>&1; then
+  DEVICES=$(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+  if [ -z "$DEVICES" ]; then
+    echo "[WARN] adb: no device attached — skipping TTS port forward (run again once your phone is plugged in)."
+  else
+    for D in $DEVICES; do
+      if adb -s "$D" reverse tcp:8000 tcp:8000 >/dev/null; then
+        echo "[OK] adb reverse tcp:8000 -> tcp:8000 on $D (TTS)"
+      else
+        echo "[WARN] adb reverse failed on $D — start the TTS server first or check USB debugging."
+      fi
+    done
+  fi
+else
+  echo "[WARN] adb not found on PATH — skipping TTS port forward."
+fi
+
 echo ""
+
+# Loud reminder if the TTS server isn't already running locally on :8000.
+# adb reverse only forwards the port — something has to actually be listening.
+if ! lsof -nP -iTCP:8000 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "############################################################"
+  echo "#                                                          #"
+  echo "#   !!  TTS SERVER IS NOT RUNNING  !!                      #"
+  echo "#                                                          #"
+  echo "#   Open a NEW terminal and run:                           #"
+  echo "#                                                          #"
+  echo "#     cd Accent_engine                                     #"
+  echo "#     source venv/bin/activate                             #"
+  echo "#     uvicorn tts_service:app --host 0.0.0.0 --port 8000   #"
+  echo "#                                                          #"
+  echo "#   Without this, the AI voice in scenario chat is silent. #"
+  echo "#                                                          #"
+  echo "############################################################"
+  echo ""
+else
+  echo "[OK] TTS server is already running on :8000."
+fi
+
 echo "Done. Fully stop+restart Flutter to pick up the new .env (hot reload won't)."

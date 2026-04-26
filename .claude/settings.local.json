@@ -13,7 +13,14 @@
       "Bash(git commit -m ' *)",
       "Bash(git commit --amend -m ' *)",
       "Bash(git push *)",
-      "Bash(curl -s -X POST https://grammar-checker-702584631438.us-central1.run.app/analyze -H 'Content-Type: application/json' -d '{\"text\":\"The team of doctors have arrived.\"}')"
+      "Bash(curl -s -X POST https://grammar-checker-702584631438.us-central1.run.app/analyze -H 'Content-Type: application/json' -d '{\"text\":\"The team of doctors have arrived.\"}')",
+      "Bash(curl -s -o /dev/null -w \"TTS server: %{http_code}\\\\n\" http://127.0.0.1:8000/ --max-time 2)",
+      "Bash(adb devices *)",
+      "Bash(adb reverse *)",
+      "Bash(lsof -nP -iTCP:8000 -sTCP:LISTEN)",
+      "Bash(./scripts/update_env_ip.sh *)",
+      "Bash(kill 37712)",
+      "Bash(git pull *)"
     ]
   }
 }

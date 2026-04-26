@@ -20,6 +20,10 @@
       "Bash(lsof -nP -iTCP:8000 -sTCP:LISTEN)",
       "Bash(./scripts/update_env_ip.sh *)",
       "Bash(kill 37712)",
+      "Bash(git commit *)",
+      "Bash(xargs grep *)",
+      "Bash(grep -v \"//\")",
+      "Bash(git fetch *)",
       "Bash(git pull *)"
     ]
   }

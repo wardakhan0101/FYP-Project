@@ -10,6 +10,7 @@ import '../services/grammar_api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/stat_card.dart';
 import 'login_screen.dart';
+import 'root_scaffold.dart';
 import 'unified_report_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -326,7 +327,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: textDark, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
+          // Profile is a tab inside RootScaffold's IndexedStack — Navigator.pop
+          // would pop the only route and leave a black screen. Switch to the
+          // Home tab instead, matching the system-back PopScope behavior.
+          onPressed: () {
+            final root = context.findAncestorStateOfType<RootScaffoldState>();
+            if (root != null) {
+              root.switchToTab(0);
+            } else {
+              Navigator.of(context).maybePop();
+            }
+          },
         ),
         title: const Text(
           'My Profile',

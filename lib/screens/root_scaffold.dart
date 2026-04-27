@@ -23,10 +23,18 @@ class RootScaffold extends StatefulWidget {
   const RootScaffold({super.key});
 
   @override
-  State<RootScaffold> createState() => _RootScaffoldState();
+  State<RootScaffold> createState() => RootScaffoldState();
 }
 
-class _RootScaffoldState extends State<RootScaffold> {
+class RootScaffoldState extends State<RootScaffold> {
+  /// Lets a tab child (e.g. ProfileScreen's AppBar back arrow) request a tab
+  /// switch instead of calling Navigator.pop — which would pop the only route
+  /// on the stack and leave a black screen.
+  void switchToTab(int index) {
+    if (!mounted || index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+  }
+
   int _currentIndex = 0;
   List<String> _badges = const [];
 

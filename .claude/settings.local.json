@@ -24,7 +24,10 @@
       "Bash(xargs grep *)",
       "Bash(grep -v \"//\")",
       "Bash(git fetch *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(gcloud run *)",
+      "Bash(gcloud builds *)",
+      "Bash(curl *)"
     ]
   }
 }

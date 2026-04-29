@@ -1,7 +1,6 @@
 # Fluency Engine — Deployment Guide
 
-Python FastAPI service using OpenAI Whisper for speech-to-text and fluency analysis.
-Replaces the Deepgram dependency in `fluency_screen.dart`.
+Python FastAPI service that transcribes audio with **OpenAI Whisper** and runs fluency analysis with **spaCy**. Deployed to Google Cloud Run. Works alongside Deepgram (which handles live streaming STT in the Flutter app) — this engine does the post-session deep analysis.
 
 ## Prerequisites
 
@@ -95,6 +94,7 @@ FLUENCY_API_URL=https://fluency-engine-xxxxxxxxxx-uc.a.run.app
 ```json
 {
   "transcript": "Hello this is a test uh basically...",
+  "annotated_transcript": "Hello this is a test [F:uh] [F:basically]...",
   "fluency_issues": [
     {
       "title": "FILLER WORDS",
@@ -103,12 +103,25 @@ FLUENCY_API_URL=https://fluency-engine-xxxxxxxxxx-uc.a.run.app
       "suggestions": ["Pause silently instead", "..."]
     }
   ],
-  "word_count": 42
+  "detected_fillers": [
+    {"word": "uh", "type": "HARD", "start": 1.2, "end": 1.4}
+  ],
+  "pauses": [
+    {"start": 3.1, "end": 4.6, "duration": 1.5}
+  ],
+  "stutters": [],
+  "fast_phrases": [],
+  "word_count": 42,
+  "whisper_words": [
+    {"word": "Hello", "start": 0.0, "end": 0.4}
+  ]
 }
 ```
 
+> **Note:** `whisper_words` is also returned so the pronunciation engine can reuse Whisper's word timings without re-transcribing the same audio.
+
 ### `GET /health`
-Returns `{"status": "ok", "model": "whisper-base"}` — use this to verify the service is running.
+Returns `{"status": "ok", "model": "whisper-base+spacy"}` — use this to verify the service is running.
 
 ---
 

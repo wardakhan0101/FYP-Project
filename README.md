@@ -8,29 +8,28 @@ Built with **Flutter** (frontend) and four independent **Python FastAPI** backen
 
 ## Screenshots
 
-**Onboarding & Identity**
-
-| Placement Assessment | Home Dashboard | Profile |
-|:---:|:---:|:---:|
-| ![Placement Assessment](screenshots/placement_assessment.png) | ![Home Dashboard](screenshots/Home.png) | ![Profile](screenshots/profile.png) |
-
-**Practice Modes**
-
-| Practice Hub | Scenario Chat | Timed Presentation |
-|:---:|:---:|:---:|
-| ![Practice Hub](screenshots/practice_hub.png) | ![Scenario Chat](screenshots/scenario_chat.png) | ![Timed Presentation](screenshots/timed_presentation.png) |
-
-**Performance Reports**
-
-| Grammar Report | Fluency Report | Pronunciation Report |
-|:---:|:---:|:---:|
-| ![Grammar Report](screenshots/grammar_report.png) | ![Fluency Report](screenshots/fluency_report.png) | ![Pronunciation Report](screenshots/pronunciation_report.png) |
-
-**Gamification**
-
-| Achievements |
-|:---:|
-| ![Achievements](screenshots/achievements.png) |
+<table>
+  <tr>
+    <td align="center"><b>Placement Assessment</b><br/><img src="screenshots/placement_assessment.png" width="240" alt="Placement assessment intro"/></td>
+    <td align="center"><b>Home Dashboard</b><br/><img src="screenshots/Home.png" width="240" alt="Home dashboard with streak, XP and level progress"/></td>
+    <td align="center"><b>Profile</b><br/><img src="screenshots/profile.png" width="240" alt="Profile screen with stats and latest session"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Practice Hub</b><br/><img src="screenshots/practice_hub.png" width="240" alt="Practice hub with timed practice and role-play scenarios"/></td>
+    <td align="center"><b>Scenario Chat</b><br/><img src="screenshots/scenario_chat.png" width="240" alt="Voice-first AI scenario chat — ordering fast food"/></td>
+    <td align="center"><b>Timed Presentation</b><br/><img src="screenshots/timed_presentation.png" width="240" alt="Timed presentation practice screen with live transcript"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Grammar Report</b><br/><img src="screenshots/grammar_report.png" width="240" alt="Grammar sub-report with score, XP and mistakes"/></td>
+    <td align="center"><b>Fluency Report</b><br/><img src="screenshots/fluency_report.png" width="240" alt="Fluency sub-report with annotated transcript and filler words"/></td>
+    <td align="center"><b>Pronunciation Report</b><br/><img src="screenshots/pronunciation_report.png" width="240" alt="Pronunciation sub-report with per-word and phoneme detail"/></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td align="center"><b>Achievements</b><br/><img src="screenshots/achievements.png" width="240" alt="Achievement gallery with locked and unlocked badges"/></td>
+    <td></td>
+  </tr>
+</table>
 
 ---
 

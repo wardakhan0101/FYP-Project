@@ -6,6 +6,34 @@ Built with **Flutter** (frontend) and four independent **Python FastAPI** backen
 
 ---
 
+## Screenshots
+
+**Onboarding & Identity**
+
+| Placement Assessment | Home Dashboard | Profile |
+|:---:|:---:|:---:|
+| ![Placement Assessment](screenshots/placement_assessment.png) | ![Home Dashboard](screenshots/Home.png) | ![Profile](screenshots/profile.png) |
+
+**Practice Modes**
+
+| Practice Hub | Scenario Chat | Timed Presentation |
+|:---:|:---:|:---:|
+| ![Practice Hub](screenshots/practice_hub.png) | ![Scenario Chat](screenshots/scenario_chat.png) | ![Timed Presentation](screenshots/timed_presentation.png) |
+
+**Performance Reports**
+
+| Grammar Report | Fluency Report | Pronunciation Report |
+|:---:|:---:|:---:|
+| ![Grammar Report](screenshots/grammar_report.png) | ![Fluency Report](screenshots/fluency_report.png) | ![Pronunciation Report](screenshots/pronunciation_report.png) |
+
+**Gamification**
+
+| Achievements |
+|:---:|
+| ![Achievements](screenshots/achievements.png) |
+
+---
+
 ## Features
 
 ### Scenario Chat Practice

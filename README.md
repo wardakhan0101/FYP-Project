@@ -1,5 +1,9 @@
 # Lingua Franca
 
+<p align="center">
+  <img src="screenshots/swinging_robot.gif" width="120" alt="The Lingua Franca mascot — a little swinging robot drawn live in the Flutter app"/>
+</p>
+
 An AI-powered mobile app for improving spoken English through real-time conversational practice, multi-dimensional speech analysis, and gamified progress tracking.
 
 Built with **Flutter** (frontend) and four independent **Python FastAPI** backends.

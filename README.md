@@ -300,5 +300,4 @@ See [fluency_engine/README.md](fluency_engine/README.md) for the full step-by-st
 
 ## Platform Support
 
-- **Android** (primary — validated on Redmi Note 14)
-- Web (build target available; audio/mic features may be limited)
+- **Android**

@@ -50,4 +50,8 @@ Accent_engine/venv/
 fluency_engine/venv/
 grammar_checker/venv/
 
+# Claude
+.claude/
+CLAUDE.md
+
 

@@ -836,10 +836,14 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Level ${_displayLevel(level)} Progress',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textGrey),
+                  Flexible(
+                    child: Text(
+                      'Level ${_displayLevel(level)} Progress',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textGrey),
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     threshold == null ? 'MAX — $totalXp XP' : '$totalXp / $threshold XP',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primary),

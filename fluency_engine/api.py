@@ -305,7 +305,7 @@ def detect_fillers(words: List[Dict], transcript: str) -> List[Dict]:
         if w not in SOFT_FILLERS:
             continue
         widx = whisper_idx_for_token(token)
-        if widx is None:
+        if widx is one:
             continue
         if widx in claimed_indices:
             continue
